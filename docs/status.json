@@ -3,7 +3,7 @@
   "product_name": "E-Rechnung Studio",
   "date": "2026-05-18",
   "workspace": "/home/neon/xrechnung-converter",
-  "status": "product-build-with-local-kosit-bootstrap-browser-app-and-browser-ocr-hook",
+  "status": "product-build-with-local-kosit-bootstrap-browser-app-ocr-hook-and-field-catalog",
   "decision": "build-greenfield-with-official-local-components",
   "local_first_answer": "Generation, browser sanity checks and optional OCR/PDF extraction can run in the user's browser on the user's hardware. GitHub Pages is static hosting only and no application server is required for the default workflow. Official KoSIT/Mustang/veraPDF validation is currently best handled as a local CLI/Desktop step, not as a remote server upload.",
   "official_components_checked": {
@@ -75,15 +75,17 @@
     "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports",
     "machine-readable window.XInvoice.getBrowserExecutionModel API explaining GitHub Pages, user hardware, OCR and KoSIT boundaries",
     "KoSIT setup documentation and product-page download links",
-    "PDF.js selected as first browser-local embedded-text PDF extraction spike candidate, with explicit no-OCR and no-network/persistence bundle gates"
+    "PDF.js selected as first browser-local embedded-text PDF extraction spike candidate, with explicit no-OCR and no-network/persistence bundle gates",
+    "generated browser-loadable XRechnung BT/BG field catalog from xrechnung-cius-model.xml",
+    "advanced catalog-first UI groups for references, parties, delivery, payment, allowances/charges, taxes, extended lines and attachments",
+    "window.XInvoice.getXRechnungFieldCatalog and getAdvancedFieldGroups APIs for agents and UI planning"
   ],
   "verified_commands": [
-    "python3 scripts/bootstrap_validators.py --include-visualization -> ok true, manifest at tools/kosit/manifest.json",
-    "xrechnung-converter examples/minimal-invoice.json -o out/kosit-minimal.xml --kosit-validator tools/kosit/validator-1.6.2-standalone.jar --kosit-scenarios tools/kosit/xrechnung-config/scenarios.xml --report-dir reports/kosit-minimal-5 -> ok true, engine kosit, report_path reports/kosit-minimal-5/kosit-minimal-report.xml",
-    ". .venv/bin/activate && python3 -m pytest -q -> 21 passed",
-    "node tests/webapp.test.js -> 26 ok checks"
+    "python3 scripts/generate_xrechnung_field_catalog.py -> wrote web/xrechnung-field-catalog.js (196 terms, 32 groups)",
+    "node tests/webapp.test.js -> 31 ok checks",
+    ". .venv/bin/activate && python3 -m pytest -q -> 21 passed"
   ],
-  "next_task": "Build the PDF.js browser-local embedded-text extraction spike behind registerLocalExtractor with a real local browser smoke, then decide whether to keep PDF.js, add separate OCR for scanned PDFs, or defer heavy OCR to Desktop/CLI.",
+  "next_task": "Continue the browser-local PDF extraction lane: implement a small PDF.js embedded-text extractor behind registerLocalExtractor with a real local browser smoke, then keep scanned/image PDFs in low-confidence OCR/human-review flow until a reviewed OCR engine is bundled.",
   "required_field_policy": [
     "Leitweg-ID / BuyerReference",
     "Bank details / IBAN",
@@ -97,6 +99,7 @@
   "current_limits": [
     "CLI xrechnung-ubl now has a minimal JSON example that passes local KoSIT validation, but broader field coverage still needs iterative hardening.",
     "Browser app runs generation and sanity validation on the user's hardware, but does not yet ship KoSIT as a pure Browser/WebAssembly runtime; official validation uses local CLI/native validator artifacts.",
-    "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction. PDF.js is selected for the next embedded-text PDF spike, but it is not shipped yet; scanned PDFs still need a separate local OCR engine and every extracted field stays human-review-gated."
+    "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction. PDF.js is selected for the next embedded-text PDF spike, but it is not shipped yet; scanned PDFs still need a separate local OCR engine and every extracted field stays human-review-gated.",
+    "The browser field catalog exposes broad XRechnung BT/BG coverage from the official model, but many advanced fields are catalog-first only; generator/export round-trip support still needs TDD and KoSIT validation per group."
   ]
 }

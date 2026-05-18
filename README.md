@@ -20,7 +20,9 @@ python3 -m http.server 8124 --bind 127.0.0.1
 
 Die Browser-App nutzt keine Datenbank, keine Cookies und keine Server-Uploads. GitHub Pages hostet nur statische Dateien; Generierung, Browser-Sanity-Checks und lokale Dateiauswertung laufen auf der Hardware des Benutzers. TXT/CSV/XML können lokal im Browser-Tab eingelesen werden. PDF/DOC/DOCX sind semantische Extraktion: eine geprüfte OCR/PDF-Engine kann lokal im Browser eingebunden werden, sonst bleibt der sichere Fallback ein lokales Desktop/CLI-Modul mit Sichtprüfung.
 
-Pflichtfelder sind mit `*` markiert; fehlt eines davon, wird nicht konvertiert. Dazu zählen Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Rechnungssteller-Telefon für XRechnung-Kontaktangaben, Seller Identifier, Auftragsnummer/Bestellreferenz und Positionsdaten. Für andere Agenten/LLMs gibt es `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern oder Artefakten plus Browser-Validierungsbericht.
+Der Browser lädt zusätzlich einen aus dem offiziellen XRechnung-CIUS-Modell generierten Feldkatalog (`web/xrechnung-field-catalog.js`). Er enthält 196 BT/BG-Terme und macht die nächsten Produktgruppen sichtbar: Referenzen, Parteien, Lieferung, Zahlung, Zu-/Abschläge, Steuern, erweiterte Positionen und Anhänge. Diese Gruppen sind bewusst `catalog-first`: sichtbar und agentenlesbar, aber erst nach Generator-/KoSIT-Tests als vollständig exportfähig zu behandeln.
+
+Pflichtfelder sind mit `*` markiert; fehlt eines davon, wird nicht konvertiert. Dazu zählen Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Rechnungssteller-Telefon für XRechnung-Kontaktangaben, Seller Identifier, Auftragsnummer/Bestellreferenz und Positionsdaten. Für andere Agenten/LLMs gibt es `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern oder Artefakten plus Browser-Validierungsbericht. Zusätzlich stehen `window.XInvoice.getXRechnungFieldCatalog()` und `window.XInvoice.getAdvancedFieldGroups()` für Feldkatalog-/UI-Planung bereit.
 
 ## KoSIT lokal bootstrappen
 

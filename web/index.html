@@ -56,7 +56,7 @@
       <div class="section-head">
         <p class="eyebrow">Arbeitsfläche</p>
         <h2>Dokument einlesen, Felder prüfen, Artefakt erzeugen</h2>
-        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDF/DOC/DOCX brauchen eine lokale OCR/PDF-Engine im Browser oder ein lokales Desktop/CLI-Modul; automatisch erkannte Felder bleiben Vorschläge und müssen geprüft werden.</p>
+        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDF/DOC/DOCX sollen per lokaler Browser-Extraktion/OCR oder eingebettetem XML vorbefüllt werden; automatisch erkannte Felder bleiben Vorschläge. Fehlende Pflichtangaben werden vor dem Generieren markiert.</p>
       </div>
 
       <form id="invoiceForm" class="converter-layout">
@@ -67,7 +67,9 @@
             <input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml">
             <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet.</span>
           </label>
-          <div class="mini-note">PDF/DOC/DOCX: OCR/Text-Extraktion soll lokal im Browser auf Ihrer Hardware laufen, sobald eine geprüfte Engine eingebunden ist. Ohne Engine zeigt das Produkt den lokalen nächsten Schritt an und erfindet keine Daten.</div>
+          <div class="mini-note">PDF/DOC/DOCX: OCR/Text-Extraktion soll lokal im Browser auf Ihrer Hardware laufen, sobald eine geprüfte Engine eingebunden ist. Bei ZUGFeRD/Factur-X wird zuerst eingebettetes XML gelesen, bevor OCR versucht wird. Ohne Engine zeigt das Produkt den lokalen nächsten Schritt an und erfindet keine Daten.</div>
+
+          <div class="mini-note"><strong>Großes Formular als Ziel:</strong> Alle XRechnung-BT/BG-Felder sollen als Produktformular abbildbar werden. Der Ausbau erfolgt in Gruppen: Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert. Grundlage ist das offizielle <code>xrechnung-3.0.2-bundle-2026-01-31.zip</code>.</div>
 
           <h3>Zielformat</h3>
           <label><span class="label-text">Format</span> <select id="format">
@@ -140,6 +142,19 @@
             </div>
           </fieldset>
 
+          <fieldset>
+            <legend>XRechnung Feldkatalog</legend>
+            <p class="helper">Der Katalog kommt aus dem offiziellen XRechnung-CIUS-Modell. Katalog zuerst bedeutet: Felder werden sichtbar und planbar, der vollständige Export folgt schrittweise und wird erst nach Generator- und KoSIT-Tests als unterstützt markiert.</p>
+            <div id="advancedFieldCatalog" class="catalog-grid">
+              <article class="catalog-group" data-group="BG-4"><h4>Parteien · SELLER / BUYER</h4><p>BG-4 SELLER und BG-7 BUYER: Namen, IDs, Kontakte und Adressen.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
+              <article class="catalog-group" data-group="BG-13"><h4>Lieferung · DELIVERY INFORMATION</h4><p>Lieferdatum, Lieferort und Lieferanschrift.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
+              <article class="catalog-group" data-group="BG-20"><h4>Zu-/Abschläge · ALLOWANCES / CHARGES</h4><p>BG-20/21 und BG-27/28 für Dokument- und Positions-Zu-/Abschläge.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
+              <article class="catalog-group" data-group="BG-23"><h4>Steuern · VAT BREAKDOWN</h4><p>BG-23 VAT BREAKDOWN mit Steuerkategorie, Steuerbasis, Steuerbetrag und Satz.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
+              <article class="catalog-group" data-group="BG-25"><h4>Positionen · INVOICE LINE</h4><p>BG-25 INVOICE LINE, BG-31 ITEM INFORMATION und erweiterte Positionsdetails.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
+              <article class="catalog-group" data-group="BG-24"><h4>Anhänge · ADDITIONAL SUPPORTING DOCUMENTS</h4><p>Rechnungsbegründende Unterlagen und eingebettete Anhänge.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
+            </div>
+          </fieldset>
+
           <button type="submit" class="button primary wide">Artefakt lokal erzeugen und prüfen</button>
           <pre id="result" class="result" hidden></pre>
           <label><span class="label-text">Artefakt Vorschau</span> <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier das XML-Artefakt."></textarea>
@@ -154,6 +169,7 @@
         <h2>Was ist KoSIT und warum nicht einfach Server?</h2>
         <p>KoSIT ist der offizielle lokale Validator-Stack für XRechnung: ein Java-Validator plus XRechnung-Konfiguration mit XSD, Schematron, Codelisten und Szenarien. Er prüft, ob eine konkrete XML-Rechnung die XRechnung-Regeln erfüllt und erzeugt einen Report.</p>
         <p>In diesem Produkt hostet GitHub nur die statischen Dateien. Der Browser kann XML erzeugen und Sanity-Checks ausführen; ein echter KoSIT-PASS wird erst behauptet, wenn der offizielle Validator auf dem Gerät des Benutzers für genau dieses XML gelaufen ist. Eine Browser-Portierung wäre möglich, aber sie muss Java/WebAssembly, ZIP-Artefakte, Schematron/XSLT und Report-Dateien sauber paketieren.</p>
+        <p><strong>Browser-Validierung Zielbild:</strong> Die Webseite soll XSD per WebAssembly, Schematron/XSLT im Browser und Codelisten aus dem XRechnung-Bundle lokal ausführen. Ein KoSIT-CLI-Referenzvergleich bleibt der Goldstandard, bis der Browser-Report nachweisbar dieselben Entscheidungen trifft. Erst dann wird aus Browser-Sanity eine echte browserlokale XRechnung-Validierung.</p>
       </div>
       <div class="validator-grid">
         <article>
@@ -203,6 +219,7 @@ curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/release
   <footer>
     <p>Keine Rechts- oder Steuerberatung. Browser-Sanity-Validierung ersetzt nicht KoSIT, Mustangproject, veraPDF oder fachliche Prüfung.</p>
   </footer>
+  <script src="xrechnung-field-catalog.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

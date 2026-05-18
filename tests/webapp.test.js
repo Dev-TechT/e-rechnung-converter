@@ -123,6 +123,33 @@ test('product page includes local document intake and OCR architecture without r
   assert(html.includes('GitHub Pages liefert nur HTML, CSS und JavaScript aus'), 'missing GitHub static hosting wording');
 });
 
+test('product page exposes full XRechnung product direction and advanced field groups', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  for (const needle of [
+    'Großes Formular',
+    'Alle XRechnung-BT/BG-Felder',
+    'Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert',
+    'Fehlende Pflichtangaben werden vor dem Generieren markiert',
+    'xrechnung-3.0.2-bundle-2026-01-31.zip',
+  ]) {
+    assert(html.includes(needle), `missing full product direction copy: ${needle}`);
+  }
+});
+
+test('browser validator roadmap targets local XSD Schematron and codelist validation before KoSIT-equivalent claims', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  for (const needle of [
+    'Browser-Validierung Zielbild',
+    'XSD per WebAssembly',
+    'Schematron/XSLT im Browser',
+    'Codelisten aus dem XRechnung-Bundle',
+    'KoSIT-CLI-Referenzvergleich',
+  ]) {
+    assert(html.includes(needle), `missing browser validator roadmap copy: ${needle}`);
+  }
+  assert(!html.includes('KoSIT-valid im Browser verfügbar'), 'must not claim browser KoSIT availability before implementation');
+});
+
 test('local document intake parses csv txt and xml snippets without network', () => {
   let parsed = app.parseLocalDocument({ name: 'invoice.csv', type: 'text/csv', text: 'invoiceNumber,buyerReference,orderNumber\nRE-1,LW-1,PO-1' });
   assert(parsed.ok === true, 'csv should parse');
@@ -266,6 +293,51 @@ test('required field catalog exposes star-marked fields for browser and LLM agen
     assert(ids.includes(expected), `${expected} missing from required fields`);
   }
   assert(fields.every((field) => field.required === true), 'all returned fields should be marked required');
+});
+
+
+test('xrechnung field catalog is generated from the CIUS model with core advanced groups', () => {
+  const catalog = require('../web/xrechnung-field-catalog.js');
+  assert(catalog.meta.source.includes('xrechnung-cius-model.xml'), 'catalog source should name CIUS model');
+  assert(catalog.meta.bundle === 'xrechnung-3.0.2-bundle-2026-01-31.zip', 'catalog should record bundle version');
+  assert(catalog.meta.termCount >= 190, 'catalog should expose broad BT/BG term coverage');
+  assert(catalog.meta.requiredTermCount >= 40, 'catalog should expose required terms from structure');
+  const ids = catalog.terms.map((term) => term.id);
+  for (const expected of ['BT-1', 'BT-2', 'BT-10', 'BT-20', 'BT-34', 'BT-49', 'BT-72', 'BT-84', 'BT-95', 'BT-99', 'BT-118', 'BT-126', 'BT-129', 'BT-130', 'BT-131', 'BT-153']) {
+    assert(ids.includes(expected), `${expected} missing from catalog terms`);
+  }
+  for (const expected of ['BG-4', 'BG-7', 'BG-13', 'BG-20', 'BG-21', 'BG-23', 'BG-25', 'BG-27', 'BG-28', 'BG-31']) {
+    const group = catalog.groups.find((entry) => entry.id === expected);
+    assert(group, `${expected} missing from catalog groups`);
+    assert(Array.isArray(group.children) && group.children.length > 0, `${expected} should expose child terms/groups`);
+  }
+});
+
+test('runtime exposes full XRechnung catalog and advanced field groups without claiming full export support', () => {
+  const catalog = app.getXRechnungFieldCatalog();
+  assert(catalog.meta.termCount >= 190, 'runtime catalog term count too small');
+  assert(catalog.groups.some((group) => group.id === 'BG-23' && /VAT BREAKDOWN/.test(group.name)), 'VAT breakdown group missing');
+  const advanced = app.getAdvancedFieldGroups();
+  const labels = advanced.map((group) => group.label).join(' | ');
+  for (const expected of ['Referenzen', 'Parteien', 'Lieferung', 'Steuern', 'Zu-/Abschläge', 'Zahlung', 'Positionen erweitert', 'Anhänge']) {
+    assert(labels.includes(expected), `advanced group missing: ${expected}`);
+  }
+  assert(advanced.every((group) => group.status === 'catalog-first'), 'advanced groups should be catalog-first until generators support round-trip');
+});
+
+test('product page renders advanced catalog groups from the XRechnung field catalog', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  for (const needle of [
+    'id="advancedFieldCatalog"',
+    'data-group="BG-23"',
+    'VAT BREAKDOWN',
+    'data-group="BG-25"',
+    'INVOICE LINE',
+    'Katalog zuerst',
+    'Export folgt schrittweise',
+  ]) {
+    assert(html.includes(needle), `missing advanced catalog UI: ${needle}`);
+  }
 });
 
 test('generate xrechnung ubl xml includes Leitweg-ID, payment terms, seller email and order reference', () => {

@@ -1,8 +1,12 @@
 (function (root, factory) {
-  const api = factory();
+  let fieldCatalog = root.XRECHNUNG_FIELD_CATALOG;
+  if (!fieldCatalog && typeof require === 'function') {
+    try { fieldCatalog = require('./xrechnung-field-catalog.js'); } catch (error) { fieldCatalog = null; }
+  }
+  const api = factory(fieldCatalog);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.XInvoice = api;
-})(typeof globalThis !== 'undefined' ? globalThis : window, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : window, function (fieldCatalog) {
   'use strict';
 
   const REQUIRED_FIELDS = [
@@ -77,6 +81,44 @@
       hybridProfile: 'Factur-X EN16931 preparation package',
     },
   };
+
+  function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function getXRechnungFieldCatalog() {
+    if (!fieldCatalog) {
+      return {
+        meta: {
+          source: 'xrechnung-cius-model.xml',
+          bundle: 'xrechnung-3.0.2-bundle-2026-01-31.zip',
+          termCount: 0,
+          groupCount: 0,
+          requiredTermCount: 0,
+          privateDataIncluded: false,
+          unavailable: true,
+        },
+        terms: [],
+        groups: [],
+        requiredTerms: [],
+        productGroups: [],
+      };
+    }
+    return cloneJson(fieldCatalog);
+  }
+
+  function getAdvancedFieldGroups() {
+    const catalog = getXRechnungFieldCatalog();
+    return (catalog.productGroups || []).map((group) => ({
+      key: group.key,
+      label: group.label,
+      description: group.description,
+      status: group.status || 'catalog-first',
+      groups: [...(group.groups || [])],
+      terms: [...(group.terms || [])],
+      entries: (group.entries || []).map((entry) => ({ ...entry })),
+    }));
+  }
 
   function decimal(value, fallback = 0) {
     const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
@@ -663,6 +705,46 @@
     }
   }
 
+  function renderAdvancedFieldCatalog(document) {
+    const container = document.getElementById('advancedFieldCatalog');
+    if (!container) return;
+    const groups = getAdvancedFieldGroups();
+    const replaceChildren = (...nodes) => {
+      if (typeof container.replaceChildren === 'function') container.replaceChildren(...nodes);
+      else {
+        while (container.firstChild) container.removeChild(container.firstChild);
+        nodes.forEach((node) => container.appendChild(node));
+      }
+    };
+    if (groups.length === 0) {
+      replaceChildren(document.createTextNode('XRechnung-Feldkatalog konnte nicht geladen werden.'));
+      return;
+    }
+    replaceChildren();
+    for (const group of groups) {
+      const article = document.createElement('article');
+      article.className = 'catalog-group';
+      article.dataset.group = group.groups[0] || group.key;
+      const title = document.createElement('h4');
+      title.textContent = group.label;
+      const description = document.createElement('p');
+      description.textContent = group.description;
+      const entries = document.createElement('p');
+      const strong = document.createElement('strong');
+      strong.textContent = 'Katalog zuerst:';
+      entries.appendChild(strong);
+      entries.appendChild(document.createTextNode(` ${group.entries.slice(0, 10).map((entry) => `${entry.id} ${entry.name}`).join(' · ')}`));
+      const note = document.createElement('p');
+      note.className = 'mini-note';
+      note.textContent = 'Export folgt schrittweise; diese Gruppe ist noch nicht vollständig round-trip-fähig.';
+      article.appendChild(title);
+      article.appendChild(description);
+      article.appendChild(entries);
+      article.appendChild(note);
+      container.appendChild(article);
+    }
+  }
+
   function initBrowser(document) {
     const form = document.getElementById('invoiceForm');
     const formatSelect = document.getElementById('format');
@@ -670,6 +752,7 @@
     const sourceFile = document.getElementById('sourceFile');
     if (!form || !formatSelect) return;
     markRequiredFields(document);
+    renderAdvancedFieldCatalog(document);
 
     function renderPlan() {
       const fmt = FORMATS[formatSelect.value];
@@ -732,5 +815,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, renderAdvancedFieldCatalog, initBrowser };
 });
