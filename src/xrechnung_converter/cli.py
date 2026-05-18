@@ -75,6 +75,7 @@ def invoice_from_csv(path: Path) -> Invoice:
             vat_id=first.get("seller_vat_id", ""),
             endpoint_id=first.get("seller_endpoint_id", ""),
             endpoint_scheme_id=first.get("seller_endpoint_scheme_id", "EM"),
+            telephone=first.get("seller_telephone", ""),
         ),
         buyer=Party(
             name=first["buyer_name"],
@@ -85,6 +86,7 @@ def invoice_from_csv(path: Path) -> Invoice:
             vat_id=first.get("buyer_vat_id", ""),
             endpoint_id=first.get("buyer_endpoint_id", ""),
             endpoint_scheme_id=first.get("buyer_endpoint_scheme_id", "EM"),
+            telephone=first.get("buyer_telephone", ""),
         ),
         lines=lines,
         payment_iban=first.get("payment_iban", ""),
@@ -106,6 +108,17 @@ def convert(args: argparse.Namespace) -> int:
             f"Output format '{selected_format.id}' is planned but not implemented in this MVP. "
             "Use --print-validation-plan to inspect its local validation workflow."
         )
+
+    if bool(args.kosit_validator) != bool(args.kosit_scenarios):
+        print(json.dumps({
+            "ok": False,
+            "engine": "kosit",
+            "output_format": selected_format.id,
+            "errors": ["--kosit-validator and --kosit-scenarios must be provided together."],
+            "warnings": [],
+            "report_path": None,
+        }, ensure_ascii=False, indent=2))
+        return 2
 
     src = Path(args.input)
     if args.format == "json" or src.suffix.lower() == ".json":

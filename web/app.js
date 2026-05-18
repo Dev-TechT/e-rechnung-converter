@@ -14,6 +14,7 @@
     { id: 'sellerName', label: 'Name des Rechnungsstellers', required: true },
     { id: 'sellerEndpointId', label: 'E-Mail-Adresse des Rechnungsstellers / Endpoint-ID', required: true },
     { id: 'sellerIdentifier', label: 'Seller Identifier / Verkäuferkennung', required: true },
+    { id: 'sellerTelephone', label: 'Telefon des Rechnungsstellers', required: true },
     { id: 'buyerName', label: 'Name des Empfängers', required: true },
     { id: 'paymentIban', label: 'IBAN', required: true },
     { id: 'paymentTerms', label: 'Zahlungsbedingungen', required: true },
@@ -156,6 +157,7 @@
     requireStringField(errors, invoice.seller?.name, 'Name des Rechnungsstellers');
     requireStringField(errors, invoice.seller?.endpointId, 'E-Mail-Adresse des Rechnungsstellers / Endpoint-ID');
     requireStringField(errors, invoice.seller?.sellerIdentifier, 'Seller Identifier / Verkäuferkennung');
+    requireStringField(errors, invoice.seller?.telephone, 'Telefon des Rechnungsstellers');
     requireStringField(errors, invoice.buyer?.name, 'Name des Empfängers');
     requireStringField(errors, invoice.paymentIban, 'IBAN');
     requireStringField(errors, invoice.paymentTerms, 'Zahlungsbedingungen');
@@ -203,6 +205,7 @@
       </cac:PostalAddress>
       ${party.vatId ? `<cac:PartyTaxScheme><cbc:CompanyID>${escapeXml(party.vatId)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>` : ''}
       <cac:PartyLegalEntity><cbc:RegistrationName>${escapeXml(party.name)}</cbc:RegistrationName></cac:PartyLegalEntity>
+      ${(party.endpointId || party.telephone) ? `<cac:Contact><cbc:Name>${escapeXml(party.name)}</cbc:Name>${party.telephone ? `<cbc:Telephone>${escapeXml(party.telephone)}</cbc:Telephone>` : ''}${party.endpointId ? `<cbc:ElectronicMail>${escapeXml(party.endpointId)}</cbc:ElectronicMail>` : ''}</cac:Contact>` : ''}
     </cac:Party>`;
   }
 
@@ -236,8 +239,8 @@
   <cbc:IssueDate>${escapeXml(invoice.issueDate)}</cbc:IssueDate>
   <cbc:DueDate>${escapeXml(invoice.dueDate)}</cbc:DueDate>
   <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
-  <cbc:DocumentCurrencyCode>${escapeXml(currency)}</cbc:DocumentCurrencyCode>
   <cbc:Note>${escapeXml(invoice.paymentTerms)}</cbc:Note>
+  <cbc:DocumentCurrencyCode>${escapeXml(currency)}</cbc:DocumentCurrencyCode>
   <cbc:BuyerReference>${escapeXml(invoice.buyerReference)}</cbc:BuyerReference>
   <cac:OrderReference><cbc:ID>${escapeXml(invoice.orderNumber)}</cbc:ID></cac:OrderReference>
   <cac:AccountingSupplierParty>${partyUblXml(invoice.seller)}
@@ -270,13 +273,13 @@
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
-  <rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${guideline}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>
+  <rsm:ExchangedDocumentContext><ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${guideline}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>
   <rsm:ExchangedDocument><ram:ID>${escapeXml(invoice.invoiceNumber)}</ram:ID><ram:TypeCode>380</ram:TypeCode><ram:IssueDateTime><udt:DateTimeString format="102">${escapeXml(invoice.issueDate.replaceAll('-', ''))}</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>
   <rsm:SupplyChainTradeTransaction>${lineXml}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:BuyerReference>${escapeXml(invoice.buyerReference)}</ram:BuyerReference>
-      <ram:SellerTradeParty><ram:ID>${escapeXml(invoice.seller.sellerIdentifier)}</ram:ID><ram:Name>${escapeXml(invoice.seller.name)}</ram:Name><ram:URIUniversalCommunication><ram:URIID schemeID="${escapeXml(invoice.seller.endpointSchemeId || 'EM')}">${escapeXml(invoice.seller.endpointId)}</ram:URIID></ram:URIUniversalCommunication></ram:SellerTradeParty>
-      <ram:BuyerTradeParty><ram:Name>${escapeXml(invoice.buyer.name)}</ram:Name></ram:BuyerTradeParty>
+      <ram:SellerTradeParty><ram:ID>${escapeXml(invoice.seller.sellerIdentifier)}</ram:ID><ram:Name>${escapeXml(invoice.seller.name)}</ram:Name><ram:DefinedTradeContact><ram:PersonName>${escapeXml(invoice.seller.name)}</ram:PersonName><ram:TelephoneUniversalCommunication><ram:CompleteNumber>${escapeXml(invoice.seller.telephone)}</ram:CompleteNumber></ram:TelephoneUniversalCommunication><ram:EmailURIUniversalCommunication><ram:URIID>${escapeXml(invoice.seller.endpointId)}</ram:URIID></ram:EmailURIUniversalCommunication></ram:DefinedTradeContact><ram:PostalTradeAddress><ram:PostcodeCode>${escapeXml(invoice.seller.postalCode)}</ram:PostcodeCode><ram:LineOne>${escapeXml(invoice.seller.street)}</ram:LineOne><ram:CityName>${escapeXml(invoice.seller.city)}</ram:CityName><ram:CountryID>${escapeXml(invoice.seller.country || 'DE')}</ram:CountryID></ram:PostalTradeAddress><ram:URIUniversalCommunication><ram:URIID schemeID="${escapeXml(invoice.seller.endpointSchemeId || 'EM')}">${escapeXml(invoice.seller.endpointId)}</ram:URIID></ram:URIUniversalCommunication>${invoice.seller.vatId ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${escapeXml(invoice.seller.vatId)}</ram:ID></ram:SpecifiedTaxRegistration>` : ''}</ram:SellerTradeParty>
+      <ram:BuyerTradeParty><ram:Name>${escapeXml(invoice.buyer.name)}</ram:Name><ram:PostalTradeAddress><ram:PostcodeCode>${escapeXml(invoice.buyer.postalCode)}</ram:PostcodeCode><ram:LineOne>${escapeXml(invoice.buyer.street)}</ram:LineOne><ram:CityName>${escapeXml(invoice.buyer.city)}</ram:CityName><ram:CountryID>${escapeXml(invoice.buyer.country || 'DE')}</ram:CountryID></ram:PostalTradeAddress>${invoice.buyer.endpointId ? `<ram:URIUniversalCommunication><ram:URIID schemeID="${escapeXml(invoice.buyer.endpointSchemeId || 'EM')}">${escapeXml(invoice.buyer.endpointId)}</ram:URIID></ram:URIUniversalCommunication>` : ''}</ram:BuyerTradeParty>
       <ram:BuyerOrderReferencedDocument><ram:IssuerAssignedID>${escapeXml(invoice.orderNumber)}</ram:IssuerAssignedID></ram:BuyerOrderReferencedDocument>
     </ram:ApplicableHeaderTradeAgreement>
     <ram:ApplicableHeaderTradeDelivery />
@@ -284,8 +287,8 @@
       <ram:InvoiceCurrencyCode>${escapeXml(currency)}</ram:InvoiceCurrencyCode>
       <ram:SpecifiedTradeSettlementPaymentMeans><ram:TypeCode>58</ram:TypeCode><ram:PayeePartyCreditorFinancialAccount><ram:IBANID>${escapeXml(invoice.paymentIban)}</ram:IBANID></ram:PayeePartyCreditorFinancialAccount></ram:SpecifiedTradeSettlementPaymentMeans>
       <ram:ApplicableTradeTax><ram:CalculatedAmount>${formatMoney(totals.tax)}</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>${formatMoney(totals.taxable)}</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${formatMoney(totals.taxPercent)}</ram:RateApplicablePercent></ram:ApplicableTradeTax>
-      <ram:SpecifiedTradeSettlementHeaderMonetarySummation><ram:LineTotalAmount>${formatMoney(totals.taxable)}</ram:LineTotalAmount><ram:TaxBasisTotalAmount>${formatMoney(totals.taxable)}</ram:TaxBasisTotalAmount><ram:TaxTotalAmount currencyID="${currency}">${formatMoney(totals.tax)}</ram:TaxTotalAmount><ram:GrandTotalAmount>${formatMoney(totals.payable)}</ram:GrandTotalAmount><ram:DuePayableAmount>${formatMoney(totals.payable)}</ram:DuePayableAmount></ram:SpecifiedTradeSettlementHeaderMonetarySummation>
       <ram:SpecifiedTradePaymentTerms><ram:Description>${escapeXml(invoice.paymentTerms)}</ram:Description></ram:SpecifiedTradePaymentTerms>
+      <ram:SpecifiedTradeSettlementHeaderMonetarySummation><ram:LineTotalAmount>${formatMoney(totals.taxable)}</ram:LineTotalAmount><ram:TaxBasisTotalAmount>${formatMoney(totals.taxable)}</ram:TaxBasisTotalAmount><ram:TaxTotalAmount currencyID="${currency}">${formatMoney(totals.tax)}</ram:TaxTotalAmount><ram:GrandTotalAmount>${formatMoney(totals.payable)}</ram:GrandTotalAmount><ram:DuePayableAmount>${formatMoney(totals.payable)}</ram:DuePayableAmount></ram:SpecifiedTradeSettlementHeaderMonetarySummation>
     </ram:ApplicableHeaderTradeSettlement>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;
@@ -347,6 +350,7 @@
       sellername: 'sellerName', rechnungssteller: 'sellerName',
       sellerendpointid: 'sellerEndpointId', selleremail: 'sellerEndpointId', email: 'sellerEndpointId',
       selleridentifier: 'sellerIdentifier', verkaeuferkennung: 'sellerIdentifier', verkäuferkennung: 'sellerIdentifier',
+      sellertelephone: 'sellerTelephone', telefon: 'sellerTelephone', telephone: 'sellerTelephone', phone: 'sellerTelephone',
       buyername: 'buyerName', empfaenger: 'buyerName', empfänger: 'buyerName',
       linedescription: 'lineDescription', beschreibung: 'lineDescription',
       linequantity: 'lineQuantity', menge: 'lineQuantity',
@@ -364,6 +368,7 @@
       ['paymentIban', /(?:IBAN)\s*[:#-]\s*([^\n\r]+)/i],
       ['paymentTerms', /(?:Zahlungsbedingungen|Payment\s*Terms)\s*[:#-]\s*([^\n\r]+)/i],
       ['sellerEndpointId', /(?:E-Mail|Email|Endpoint-ID)\s*[:#-]\s*([^\n\r]+)/i],
+      ['sellerTelephone', /(?:Telefon|Telephone|Phone)\s*[:#-]\s*([^\n\r]+)/i],
     ];
     for (const [key, pattern] of patterns) {
       const match = String(text || '').match(pattern);
@@ -418,7 +423,7 @@
 
   function applyParsedFields(document, fields) {
     const assignments = {
-      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerEndpointId: 'sellerEndpointId', sellerIdentifier: 'sellerIdentifier', buyerName: 'buyerName', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineNetPrice: 'lineNetPrice',
+      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerEndpointId: 'sellerEndpointId', sellerIdentifier: 'sellerIdentifier', sellerTelephone: 'sellerTelephone', buyerName: 'buyerName', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineNetPrice: 'lineNetPrice',
     };
     for (const [key, id] of Object.entries(assignments)) {
       if (!fields[key]) continue;
@@ -516,7 +521,7 @@
       buyerReference: value('buyerReference'),
       orderNumber: value('orderNumber'),
       seller: {
-        name: value('sellerName'), street: value('sellerStreet'), postalCode: value('sellerPostalCode'), city: value('sellerCity'), country: value('sellerCountry') || 'DE', vatId: value('sellerVatId'), endpointId: value('sellerEndpointId'), endpointSchemeId: value('sellerEndpointSchemeId') || 'EM', sellerIdentifier: value('sellerIdentifier'),
+        name: value('sellerName'), street: value('sellerStreet'), postalCode: value('sellerPostalCode'), city: value('sellerCity'), country: value('sellerCountry') || 'DE', vatId: value('sellerVatId'), endpointId: value('sellerEndpointId'), endpointSchemeId: value('sellerEndpointSchemeId') || 'EM', sellerIdentifier: value('sellerIdentifier'), telephone: value('sellerTelephone'),
       },
       buyer: {
         name: value('buyerName'), street: value('buyerStreet'), postalCode: value('buyerPostalCode'), city: value('buyerCity'), country: value('buyerCountry') || 'DE', endpointId: value('buyerEndpointId'), endpointSchemeId: value('buyerEndpointSchemeId') || 'EM',
@@ -559,8 +564,11 @@
         const star = document.createElement('span');
         star.className = 'required-star';
         star.textContent = ' *';
+        star.setAttribute?.('aria-label', 'Pflichtfeld');
         star.title = 'Pflichtfeld';
-        label.insertBefore(star, input);
+        const labelText = label.querySelector('.label-text');
+        if (labelText) labelText.appendChild(star);
+        else label.insertBefore(star, input);
       }
     }
   }
@@ -624,5 +632,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, markRequiredFields, initBrowser };
 });

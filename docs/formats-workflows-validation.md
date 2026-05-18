@@ -51,7 +51,7 @@ Validierung lokal: wie ZUGFeRD.
 
 Im Code gibt es einen Formatkatalog und zwei Implementierungsstufen:
 
-- Lokale Python-CLI: aktuell `xrechnung-ubl` als Kandidaten-Export plus Validierungspläne für die weiteren Formate.
+- Lokale Python-CLI: aktuell `xrechnung-ubl` als Export mit Basisprüfung und optionalem KoSIT-Gate; das minimale JSON/CSV-Beispiel erzeugt einen echten lokalen KoSIT-Report. Für weitere Formate gibt die CLI Validierungspläne aus.
 - Browser-App: erzeugt `xrechnung-ubl`, `xrechnung-cii`, `ubl` sowie XML-Vorbereitungspakete für `zugferd-pdf` und `factur-x-pdf`. Die Browser-Pakete sind bewusst keine echten PDFs; PDF/A-3-Montage und amtliche Validierung bleiben lokale Native-Tool-Schritte.
 
 Formate:
@@ -62,7 +62,7 @@ Formate:
 - `factur-x-pdf`: Factur-X PDF/A-3
 - `ubl`: generisches EN16931 UBL XML, später optional Peppol BIS
 
-Pflichtfeldlogik im Browser blockiert Konvertierung, wenn u.a. Leitweg-ID, Bankdaten/IBAN, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Seller Identifier, Auftragsnummer/Bestellreferenz oder Positionsdaten fehlen.
+Pflichtfeldlogik im Browser blockiert Konvertierung, wenn u.a. Leitweg-ID, Bankdaten/IBAN, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Rechnungssteller-Telefon, Seller Identifier, Auftragsnummer/Bestellreferenz oder Positionsdaten fehlen.
 
 CLI:
 
@@ -75,6 +75,18 @@ xrechnung-converter --output-format xrechnung-cii --print-validation-plan
 ## Lokale automatische Validierung
 
 ### XRechnung UBL/CII
+
+Für XRechnung UBL ist der lokale CLI-Hook implementiert:
+
+```bash
+python3 scripts/bootstrap_validators.py --include-visualization
+xrechnung-converter examples/minimal-invoice.json -o out/kosit-minimal.xml \
+  --kosit-validator tools/kosit/validator-1.6.2-standalone.jar \
+  --kosit-scenarios tools/kosit/xrechnung-config/scenarios.xml \
+  --report-dir reports/kosit-minimal
+```
+
+Das Beispiel wurde lokal mit KoSIT `ok: true` geprüft. Das ist kein pauschaler Claim für beliebige Rechnungen; jede erzeugte Rechnung braucht ihren eigenen Report.
 
 Pflichtvalidator:
 - KoSIT Validator

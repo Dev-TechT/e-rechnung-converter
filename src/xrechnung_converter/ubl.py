@@ -56,6 +56,12 @@ def _party(parent: ET.Element, party: Party) -> None:
         _sub(tax_scheme, cbc("ID"), "VAT")
     legal = _sub(party_el, cac("PartyLegalEntity"))
     _sub(legal, cbc("RegistrationName"), party.name)
+    if party.endpoint_id:
+        contact = _sub(party_el, cac("Contact"))
+        _sub(contact, cbc("Name"), party.name)
+        if party.telephone:
+            _sub(contact, cbc("Telephone"), party.telephone)
+        _sub(contact, cbc("ElectronicMail"), party.endpoint_id)
 
 
 def invoice_to_ubl_xml(invoice: Invoice) -> str:

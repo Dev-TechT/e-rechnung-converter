@@ -30,6 +30,7 @@ class Party:
     vat_id: str = ""
     endpoint_id: str = ""
     endpoint_scheme_id: str = "EM"
+    telephone: str = ""
 
 
 @dataclass

@@ -1,13 +1,13 @@
-# E-Rechnung Studio
+# xrechnung-converter
 
 Local-first Produkt für Rechnung -> E-Rechnungs-Zielformate wie XRechnung UBL, XRechnung CII, ZUGFeRD PDF/A-3, Factur-X PDF/A-3 und generisches EN16931 UBL.
 
-Status: Produktaufbau, noch nicht rechts-/produktionsfertig ohne offizielle lokale Validatoren. Die Browser-App erzeugt XRechnung UBL, XRechnung CII, generisches EN16931 UBL sowie XML-Vorbereitungspakete für ZUGFeRD/Factur-X. Die lokale Python-CLI erzeugt derzeit aus strukturierten JSON/CSV-Eingaben einen XRechnung-UBL-Kandidaten und zeigt Validierungspläne für weitere Formate.
+Status: Produktaufbau, noch nicht rechts-/produktionsfertig ohne offizielle lokale Validatoren. Die Browser-App erzeugt XRechnung UBL, XRechnung CII, generisches EN16931 UBL sowie XML-Vorbereitungspakete für ZUGFeRD/Factur-X. Die lokale Python-CLI erzeugt aus strukturierten JSON/CSV-Eingaben XRechnung-UBL und kann den KoSIT Validator lokal ausführen.
 
 ## Warum greenfield
 
-- Es gibt gute Bausteine, aber kein reifes OSS-Komplettprodukt für beliebige PDF/DOC/DOCX/TXT/CSV/XML -> valide XRechnung.
-- PDF/DOC sind semantisch unsicher; echte Produkt-UX braucht Human-in-the-loop statt "magisch immer korrekt".
+- XRechnung ist XML, nicht PDF.
+- ZUGFeRD/Factur-X brauchen PDF/A-3 + eingebettetes XML + separate Validatoren.
 - Local-first ist der DSGVO- und Verkaufshebel.
 
 ## Browser-App lokal starten
@@ -20,28 +20,24 @@ python3 -m http.server 8124 --bind 127.0.0.1
 
 Die Browser-App nutzt keine Datenbank, keine Cookies und keine Server-Uploads. TXT/CSV/XML können lokal im Browser-Tab eingelesen werden. PDF/DOC/DOCX werden aktuell nicht im Browser extrahiert; dafür ist ein lokales Desktop/CLI-Modul mit Sichtprüfung geplant.
 
-Pflichtfelder sind mit `*` markiert; fehlt eines davon, wird nicht konvertiert. Dazu zählen Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Seller Identifier, Auftragsnummer/Bestellreferenz und Positionsdaten. Für andere Agenten/LLMs gibt es `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern oder Artefakten plus Browser-Validierungsbericht.
+Pflichtfelder sind mit `*` markiert; fehlt eines davon, wird nicht konvertiert. Dazu zählen Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Rechnungssteller-Telefon für XRechnung-Kontaktangaben, Seller Identifier, Auftragsnummer/Bestellreferenz und Positionsdaten. Für andere Agenten/LLMs gibt es `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern oder Artefakten plus Browser-Validierungsbericht.
 
-## KoSIT beziehen
+## KoSIT lokal bootstrappen
 
-KoSIT braucht zwei Downloads: Validator + XRechnung-Konfiguration.
-
-```bash
-mkdir -p tools/kosit
-cd tools/kosit
-curl -L https://github.com/itplr-kosit/validator/releases/download/v1.6.2/validator-1.6.2-standalone.jar \
-  -o validator-1.6.2-standalone.jar
-curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-01-31/xrechnung-3.0.2-validator-configuration-2026-01-31.zip \
-  -o xrechnung-3.0.2-validator-configuration-2026-01-31.zip
-unzip xrechnung-3.0.2-validator-configuration-2026-01-31.zip -d xrechnung-config
-```
-
-Optional für Vorschau/Visualisierung:
+Wiederholbarer Bootstrap, inklusive robuster Download-Prüfung, Entpacken der XRechnung-Konfiguration und Manifest:
 
 ```bash
-curl -L https://github.com/itplr-kosit/xrechnung-visualization/releases/download/v2026-01-31/xrechnung-3.0.2-visualization-2026-01-31.zip \
-  -o xrechnung-3.0.2-visualization-2026-01-31.zip
+cd /home/neon/xrechnung-converter
+. .venv/bin/activate
+python3 scripts/bootstrap_validators.py --include-visualization
 ```
+
+Ergebnis liegt unter `tools/kosit/`:
+
+- `validator-1.6.2-standalone.jar`
+- `xrechnung-config/scenarios.xml`
+- optional `xrechnung-visualization/`
+- `manifest.json` mit Versionen, Pfaden, Quell-URLs und SHA-256-Werten
 
 Quellen:
 - https://github.com/itplr-kosit/validator
@@ -56,7 +52,7 @@ cd /home/neon/xrechnung-converter
 xrechnung-converter examples/minimal-invoice.json -o out/minimal-invoice.xml --output-format xrechnung-ubl
 ```
 
-Format-/Validierungsplan anzeigen:
+Format-Pläne ansehen:
 
 ```bash
 xrechnung-converter --output-format factur-x-pdf --print-validation-plan
@@ -64,7 +60,7 @@ xrechnung-converter --output-format zugferd-pdf --print-validation-plan
 xrechnung-converter --output-format xrechnung-cii --print-validation-plan
 ```
 
-Offizielle Validierung, sobald KoSIT lokal liegt:
+Offizielle lokale KoSIT-Validierung:
 
 ```bash
 xrechnung-converter examples/minimal-invoice.json -o out/minimal-invoice.xml \
@@ -73,16 +69,18 @@ xrechnung-converter examples/minimal-invoice.json -o out/minimal-invoice.xml \
   --report-dir reports/validation
 ```
 
+Der CLI-JSON-Output enthält `ok`, `engine`, `report_path`, `errors` und `warnings`. `ok: true` bedeutet: der KoSIT-Prozess hat für dieses konkrete XML erfolgreich beendet; den erzeugten Prüfbericht trotzdem mitliefern/archivieren.
+
 ## Tests
 
 ```bash
 cd /home/neon/xrechnung-converter
 . .venv/bin/activate
-pytest -q
+python3 -m pytest -q
 node tests/webapp.test.js
 ```
 
-## Wichtige Klarstellung
+## Formatgrenzen
 
 - XRechnung UBL/CII und generisches UBL sind XML-Dateien.
 - ZUGFeRD und Factur-X sind PDF/A-3-Dateien mit eingebettetem CII-XML; die Browser-App erzeugt dafür nur ein lokales Vorbereitungspaket, kein Fake-PDF.
@@ -90,3 +88,9 @@ node tests/webapp.test.js
 - Für echte Einreichung muss jede erzeugte XRechnung-XML mit KoSIT validator + validator-configuration-xrechnung validiert werden.
 - Für echte Einreichung muss jedes ZUGFeRD/Factur-X-PDF zusätzlich mit Mustangproject und veraPDF lokal validiert werden.
 - Upload ins Internet ist technisch nicht nötig; local-first ist der Default.
+
+## Browser statt Server?
+
+Generierung und einfache Browser-Sanity-Checks können im Browser des Benutzers laufen und tun das bereits. Ein lokaler Server ist dafür nicht zwingend nötig; eine statische Seite oder Desktop-Shell reicht.
+
+Die offizielle KoSIT-Validierung ist heute aber ein Java-Validator plus XRechnung-Konfigurationsartefakte. Praktisch und wartbar läuft sie lokal als CLI/Desktop-Schritt, nicht auf einem fremden Webserver. Eine spätere WebAssembly-/Browser-Portierung wäre möglich, aber deutlich aufwendiger: Java-Runtime/Dateisystem, ZIP-Artefakte, XSLT/Schematron und Report-Dateien müssten sauber im Browser verpackt werden. Deshalb ist der robuste nächste Produktschritt: Browser für Eingabe/Generierung, lokale CLI/Desktop-Komponente für KoSIT/Mustang/veraPDF und PDF/DOC/DOCX-Extraktion mit Human Review.

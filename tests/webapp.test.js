@@ -17,7 +17,7 @@ function sampleInvoice(overrides = {}) {
     orderNumber: 'DEMO-ORDER-001',
     paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
     seller: {
-      name: 'Demo Lieferant GmbH', street: 'Hauptstr. 1', postalCode: '10115', city: 'Berlin', country: 'DE', vatId: 'DEMO-VAT-ID', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'DEMO-SELLER-ID'
+      name: 'Demo Lieferant GmbH', street: 'Hauptstr. 1', postalCode: '10115', city: 'Berlin', country: 'DE', vatId: 'DEMO-VAT-ID', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'DEMO-SELLER-ID', telephone: '+49 30 123456'
     },
     buyer: {
       name: 'Demo Empfänger', street: 'Empfängerweg 1', postalCode: '00000', city: 'Demostadt', country: 'DE', endpointId: 'buyer@example.invalid', endpointSchemeId: 'EM'
@@ -108,6 +108,7 @@ test('preflight rejects missing required fields before conversion for every form
     assert(result.errors.some((error) => error.includes('Zahlungsbedingungen')), `missing payment terms error for ${formatId}`);
     assert(result.errors.some((error) => error.includes('E-Mail-Adresse')), `missing seller email error for ${formatId}`);
     assert(result.errors.some((error) => error.includes('Seller Identifier')), `missing seller identifier error for ${formatId}`);
+    assert(result.errors.some((error) => error.includes('Telefon')), `missing seller telephone error for ${formatId}`);
   }
 });
 
@@ -129,7 +130,7 @@ test('preflight rejects missing required line net price and malformed invoice ob
 test('required field catalog exposes star-marked fields for browser and LLM agents', () => {
   const fields = app.getRequiredFields('xrechnung-ubl');
   const ids = fields.map((field) => field.id);
-  for (const expected of ['invoiceNumber', 'issueDate', 'dueDate', 'buyerReference', 'orderNumber', 'sellerName', 'sellerEndpointId', 'sellerIdentifier', 'buyerName', 'paymentIban', 'paymentTerms', 'lineDescription', 'lineQuantity', 'lineNetPrice']) {
+  for (const expected of ['invoiceNumber', 'issueDate', 'dueDate', 'buyerReference', 'orderNumber', 'sellerName', 'sellerEndpointId', 'sellerIdentifier', 'sellerTelephone', 'buyerName', 'paymentIban', 'paymentTerms', 'lineDescription', 'lineQuantity', 'lineNetPrice']) {
     assert(ids.includes(expected), `${expected} missing from required fields`);
   }
   assert(fields.every((field) => field.required === true), 'all returned fields should be marked required');
@@ -143,9 +144,13 @@ test('generate xrechnung ubl xml includes Leitweg-ID, payment terms, seller emai
   assert(artifact.content.includes('<cbc:ID>DEMO-ORDER-001</cbc:ID>'), 'OrderReference missing');
   assert(artifact.content.includes('<cbc:Note>Zahlbar innerhalb von 14 Tagen ohne Abzug.</cbc:Note>'), 'payment terms missing');
   assert(artifact.content.includes('seller@example.invalid'), 'seller email missing');
+  assert(artifact.content.includes('<cac:Contact>'), 'seller contact missing');
+  assert(artifact.content.includes('<cbc:Telephone>+49 30 123456</cbc:Telephone>'), 'seller telephone missing');
   assert(artifact.content.includes('DEMO-SELLER-ID'), 'seller identifier missing');
   assert(artifact.content.includes('urn:xeinkauf.de:kosit:xrechnung_3.0'), 'XRechnung customization missing');
   assert(artifact.content.includes('<cbc:PayableAmount currencyID="EUR">238.00</cbc:PayableAmount>'), 'Payable amount wrong');
+  assert(artifact.content.indexOf('<cbc:Note>') < artifact.content.indexOf('<cbc:DocumentCurrencyCode>'), 'UBL Note must precede DocumentCurrencyCode for XSD sequence');
+  assert(artifact.content.indexOf('<cbc:BuyerReference>') < artifact.content.indexOf('<cac:OrderReference>'), 'UBL BuyerReference must precede OrderReference');
 });
 
 test('generate xrechnung cii xml uses CII CrossIndustryInvoice syntax', () => {
@@ -155,6 +160,9 @@ test('generate xrechnung cii xml uses CII CrossIndustryInvoice syntax', () => {
   assert(artifact.content.includes('<rsm:CrossIndustryInvoice'), 'CII root missing');
   assert(artifact.content.includes('urn:xeinkauf.de:kosit:xrechnung_3.0'), 'XRechnung guideline missing');
   assert(artifact.content.includes('<ram:BuyerReference>DEMO-LEITWEG-001</ram:BuyerReference>'), 'BuyerReference missing');
+  assert(artifact.content.includes('<ram:DefinedTradeContact>'), 'seller CII contact missing');
+  assert(artifact.content.includes('<ram:CompleteNumber>+49 30 123456</ram:CompleteNumber>'), 'seller CII telephone missing');
+  assert(artifact.content.indexOf('<ram:SpecifiedTradePaymentTerms>') < artifact.content.indexOf('<ram:SpecifiedTradeSettlementHeaderMonetarySummation>'), 'CII payment terms must precede monetary summation for XSD sequence');
 });
 
 test('generate generic ubl xml omits XRechnung customization but keeps EN16931 marker', () => {
@@ -171,6 +179,7 @@ test('generate ZUGFeRD and Factur-X browser artifacts as XML package descriptors
     assert(artifact.content.includes('<browserHybridInvoicePackage'), `${formatId} package root missing`);
     assert(artifact.content.includes('requiresLocalPdfA3Assembly="true"'), `${formatId} must require local PDF/A-3 assembly`);
     assert(artifact.content.includes('<embeddedCiiXml><![CDATA['), `${formatId} should include embedded CII CDATA`);
+    assert(artifact.content.includes('<ram:CompleteNumber>+49 30 123456</ram:CompleteNumber>'), `${formatId} embedded CII should include seller telephone`);
     assert(artifact.content.includes('Mustangproject'), `${formatId} should name local validator`);
     assert(artifact.content.includes('veraPDF'), `${formatId} should name PDF/A validator`);
   }
@@ -205,6 +214,41 @@ test('agent API returns structured errors instead of converting invalid invoices
   assert(result.ok === false, 'invalid conversion should fail');
   assert(!result.artifact, 'invalid conversion must not return artifact');
   assert(result.errors.some((error) => error.includes('Leitweg-ID')), 'missing Leitweg-ID error');
+});
+
+test('responsive type scale keeps hero and privacy copy compact', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
+  assert(css.includes('h1 { font-size: clamp(2.15rem, 4.8vw, 4.9rem)'), 'h1 type scale should be reduced');
+  assert(css.includes('.lead { max-width: 680px; font-size: 1.03rem'), 'lead copy should be smaller/narrower');
+  assert(css.includes('.privacy-card h2 { font-size: clamp(1.45rem, 2.4vw, 2.35rem)'), 'privacy h2 should be toned down');
+});
+
+test('required star is inserted inside inline label text before the input', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  assert(html.includes('<span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span>'), 'required star should sit next to Name text');
+  assert(html.includes('<span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span>'), 'required star should sit next to invoice label text');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
+  assert(css.includes('.label-text { display: inline-flex;'), 'label text should be inline-flex');
+});
+
+test('markRequiredFields does not duplicate static required stars', () => {
+  const calls = [];
+  const labels = new Map();
+  const document = {
+    getElementById(id) {
+      const label = labels.get(id) || {
+        querySelector(selector) { return selector === '.required-star' ? { className: 'required-star' } : null; },
+        insertBefore() { calls.push(id); },
+      };
+      labels.set(id, label);
+      return { required: false, closest() { return label; } };
+    },
+    createElement() { return { className: '', textContent: '', title: '' }; },
+  };
+
+  app.markRequiredFields(document);
+
+  assert(calls.length === 0, 'static required stars should not be duplicated');
 });
 
 test('no persistence or network APIs are used by app helpers', () => {

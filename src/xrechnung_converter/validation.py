@@ -6,6 +6,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 
+
 @dataclass
 class ValidationReport:
     ok: bool
@@ -75,8 +76,70 @@ def basic_validate_ubl(xml_text: str) -> ValidationReport:
     return ValidationReport(not errors, errors, [])
 
 
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1].lower()
+
+
+def _element_text(element: ET.Element) -> str:
+    return " ".join("".join(element.itertext()).split())
+
+
+def parse_kosit_report(report_path: Path) -> tuple[list[str], list[str]]:
+    """Extract human-readable KoSIT/Schematron findings from a validator report.
+
+    KoSIT report XML has changed namespace/details across versions and nested
+    report formats. Keep this parser intentionally tolerant: look for local XML
+    names that signal failed assertions/errors/warnings, then include test/id and
+    location attributes when present.
+    """
+    try:
+        root = ET.parse(report_path).getroot()
+    except ET.ParseError as exc:
+        return [f"Could not parse KoSIT report {report_path}: {exc}"], []
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    error_names = {"failed-assert", "error", "fatal", "failedassert"}
+    warning_names = {"warning", "successful-report", "successfulreport"}
+    for element in root.iter():
+        name = _local_name(element.tag)
+        level = element.attrib.get("level", "").lower()
+        is_error = name in error_names or (name == "message" and level in {"error", "fatal"})
+        is_warning = name in warning_names or (name == "message" and level == "warning")
+        if not is_error and not is_warning:
+            continue
+        text = _element_text(element)
+        parts = []
+        for attr in ("code", "id", "test", "location", "xpathLocation", "flag"):
+            value = element.attrib.get(attr)
+            if value:
+                parts.append(value)
+        if text:
+            parts.append(text)
+        message = " — ".join(parts) if parts else name
+        if is_error:
+            errors.append(message)
+        else:
+            warnings.append(message)
+    return errors, warnings
+
+
+def _latest_report_file(output_dir: Path) -> Path | None:
+    candidates = [path for path in output_dir.rglob("*") if path.is_file()]
+    if not candidates:
+        return None
+    xml_reports = [path for path in candidates if path.suffix.lower() == ".xml"]
+    return max(xml_reports or candidates, key=lambda p: p.stat().st_mtime)
+
+
 def run_kosit_validator(xml_path: Path, validator_jar: Path, scenarios_xml: Path, output_dir: Path) -> ValidationReport:
+    if not validator_jar.is_file():
+        return ValidationReport(False, [f"KoSIT validator JAR not found: {validator_jar}"], [], engine="kosit")
+    if not scenarios_xml.is_file():
+        return ValidationReport(False, [f"KoSIT scenarios.xml not found: {scenarios_xml}"], [], engine="kosit")
+
     output_dir.mkdir(parents=True, exist_ok=True)
+    before = {path.resolve() for path in output_dir.rglob("*") if path.is_file()}
     cmd = [
         "java",
         "-jar",
@@ -88,12 +151,28 @@ def run_kosit_validator(xml_path: Path, validator_jar: Path, scenarios_xml: Path
         str(xml_path),
     ]
     proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
-    report_files = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
-    errors = [] if proc.returncode == 0 else [proc.stderr.strip() or proc.stdout.strip() or f"KoSIT exited {proc.returncode}"]
+    report_files = [path for path in output_dir.rglob("*") if path.is_file() and path.resolve() not in before]
+    report_path = max(report_files, key=lambda p: p.stat().st_mtime) if report_files else _latest_report_file(output_dir)
+
+    report_errors: list[str] = []
+    report_warnings: list[str] = []
+    if report_path and report_path.suffix.lower() == ".xml":
+        report_errors, report_warnings = parse_kosit_report(report_path)
+
+    if proc.returncode == 0:
+        errors: list[str] = []
+    else:
+        process_error = proc.stderr.strip() or proc.stdout.strip() or f"KoSIT exited {proc.returncode}"
+        errors = report_errors or [process_error]
+
+    warnings = report_warnings
+    if proc.returncode != 0:
+        warnings = [*warnings, "Official KoSIT validation failed; inspect generated report."]
+
     return ValidationReport(
         ok=proc.returncode == 0,
         errors=errors,
-        warnings=[] if proc.returncode == 0 else ["Official KoSIT validation failed; inspect generated report."],
+        warnings=warnings,
         engine="kosit",
-        report_path=str(report_files[0]) if report_files else None,
+        report_path=str(report_path) if report_path else None,
     )

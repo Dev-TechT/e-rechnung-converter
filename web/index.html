@@ -68,8 +68,7 @@
           <div class="mini-note">PDF/DOC/DOCX: Dieses Webprodukt zeigt bewusst nur den lokalen nächsten Schritt an. Die robuste Extraktion kommt als Desktop/CLI-Modul.</div>
 
           <h3>Zielformat</h3>
-          <label>Format
-            <select id="format">
+          <label><span class="label-text">Format</span> <select id="format">
               <option value="xrechnung-ubl">XRechnung UBL XML</option>
               <option value="xrechnung-cii">XRechnung CII XML</option>
               <option value="ubl">Generisches EN16931 UBL XML</option>
@@ -88,60 +87,60 @@
           <fieldset>
             <legend>Rechnung</legend>
             <div class="grid four">
-              <label>Rechnungsnummer <input id="invoiceNumber" value="RE-2025-0001" required></label>
-              <label>Rechnungsdatum <input id="issueDate" type="date" value="2025-01-15" required></label>
-              <label>Fällig am <input id="dueDate" type="date" value="2025-02-01" required></label>
-              <label>Währung <input id="currency" value="EUR" autocomplete="off"></label>
-              <label>IBAN <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
-              <label>Zahlungsbedingungen <input id="paymentTerms" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
-              <label>Leitweg-ID / BuyerReference <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
-              <label>Auftragsnummer / Bestellreferenz <input id="orderNumber" placeholder="Beim Empfänger erfragen" required></label>
+              <label><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceNumber" value="RE-2025-0001" required></label>
+              <label><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="issueDate" type="date" value="2025-01-15" required></label>
+              <label><span class="label-text">Fällig am<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="dueDate" type="date" value="2025-02-01" required></label>
+              <label><span class="label-text">Währung</span> <input id="currency" value="EUR" autocomplete="off"></label>
+              <label><span class="label-text">IBAN<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
+              <label><span class="label-text">Zahlungsbedingungen<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentTerms" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
+              <label><span class="label-text">Leitweg-ID / BuyerReference<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
+              <label><span class="label-text">Auftragsnummer / Bestellreferenz<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="orderNumber" placeholder="Beim Empfänger erfragen" required></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Rechnungssteller</legend>
             <div class="grid three">
-              <label>Name <input id="sellerName" value="Beispiel Lieferant GmbH" required></label>
-              <label>Straße <input id="sellerStreet" value="Musterstraße 1"></label>
-              <label>PLZ <input id="sellerPostalCode" value="10115"></label>
-              <label>Stadt <input id="sellerCity" value="Berlin"></label>
-              <label>Land <input id="sellerCountry" value="DE"></label>
-              <label>USt-ID <input id="sellerVatId" value="BEISPIEL-VAT-ID"></label>
-              <label>Seller Identifier <input id="sellerIdentifier" value="BEISPIEL-SELLER-ID" required></label>
-              <label>E-Mail / Endpoint-ID <input id="sellerEndpointId" value="seller@example.invalid" required></label>
-              <label>Endpoint schemeID <input id="sellerEndpointSchemeId" value="EM"></label>
+              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerName" value="Beispiel Lieferant GmbH" required></label>
+              <label><span class="label-text">Straße</span> <input id="sellerStreet" value="Musterstraße 1"></label>
+              <label><span class="label-text">PLZ</span> <input id="sellerPostalCode" value="10115"></label>
+              <label><span class="label-text">Stadt</span> <input id="sellerCity" value="Berlin"></label>
+              <label><span class="label-text">Land</span> <input id="sellerCountry" value="DE"></label>
+              <label><span class="label-text">USt-ID</span> <input id="sellerVatId" value="BEISPIEL-VAT-ID"></label>
+              <label><span class="label-text">Seller Identifier<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerIdentifier" value="BEISPIEL-SELLER-ID" required></label>
+              <label><span class="label-text">E-Mail / Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerEndpointId" value="seller@example.invalid" required></label>
+              <label><span class="label-text">Telefon<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerTelephone" value="+49 30 123456" required></label>
+              <label><span class="label-text">Endpoint schemeID</span> <input id="sellerEndpointSchemeId" value="EM"></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Empfänger</legend>
             <div class="grid three">
-              <label>Name <input id="buyerName" value="Beispiel Empfänger" required></label>
-              <label>Straße <input id="buyerStreet" value="Empfängerweg 1"></label>
-              <label>PLZ <input id="buyerPostalCode" value="00000"></label>
-              <label>Stadt <input id="buyerCity" value="Beispielstadt"></label>
-              <label>Land <input id="buyerCountry" value="DE"></label>
-              <label>Endpoint-ID <input id="buyerEndpointId" value="buyer@example.invalid"></label>
-              <label>Endpoint schemeID <input id="buyerEndpointSchemeId" value="EM"></label>
+              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerName" value="Beispiel Empfänger" required></label>
+              <label><span class="label-text">Straße</span> <input id="buyerStreet" value="Empfängerweg 1"></label>
+              <label><span class="label-text">PLZ</span> <input id="buyerPostalCode" value="00000"></label>
+              <label><span class="label-text">Stadt</span> <input id="buyerCity" value="Beispielstadt"></label>
+              <label><span class="label-text">Land</span> <input id="buyerCountry" value="DE"></label>
+              <label><span class="label-text">Endpoint-ID</span> <input id="buyerEndpointId" value="buyer@example.invalid"></label>
+              <label><span class="label-text">Endpoint schemeID</span> <input id="buyerEndpointSchemeId" value="EM"></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Position</legend>
             <div class="grid four">
-              <label>Beschreibung <input id="lineDescription" value="Beispiel Leistung" required></label>
-              <label>Menge <input id="lineQuantity" value="1" inputmode="decimal" required></label>
-              <label>Einheit <input id="lineUnitCode" value="C62"></label>
-              <label>Nettopreis <input id="lineNetPrice" value="100.00" inputmode="decimal" required></label>
-              <label>MwSt % <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
+              <label><span class="label-text">Beschreibung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineDescription" value="Beispiel Leistung" required></label>
+              <label><span class="label-text">Menge<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineQuantity" value="1" inputmode="decimal" required></label>
+              <label><span class="label-text">Einheit</span> <input id="lineUnitCode" value="C62"></label>
+              <label><span class="label-text">Nettopreis<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineNetPrice" value="100.00" inputmode="decimal" required></label>
+              <label><span class="label-text">MwSt %</span> <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
             </div>
           </fieldset>
 
           <button type="submit" class="button primary wide">Artefakt lokal erzeugen und prüfen</button>
           <pre id="result" class="result" hidden></pre>
-          <label>Artefakt Vorschau
-            <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier das XML-Artefakt."></textarea>
+          <label><span class="label-text">Artefakt Vorschau</span> <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier das XML-Artefakt."></textarea>
           </label>
         </section>
       </form>

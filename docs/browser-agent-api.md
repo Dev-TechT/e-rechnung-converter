@@ -24,6 +24,7 @@ The app marks required fields with `*` and blocks conversion if any are missing:
 - seller name
 - seller email address / endpoint ID
 - seller identifier
+- seller telephone number
 - buyer name
 - payment IBAN
 - payment terms
@@ -44,9 +45,16 @@ const invoice = {
   buyerReference: 'BEISPIEL-LEITWEG-001',
   orderNumber: 'BEISPIEL-ORDER-001',
   paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
-  seller: { name: 'Beispiel Lieferant GmbH', country: 'DE', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'BEISPIEL-SELLER-ID' },
+  seller: {
+    name: 'Beispiel Lieferant GmbH',
+    country: 'DE',
+    endpointId: 'seller@example.invalid',
+    endpointSchemeId: 'EM',
+    sellerIdentifier: 'BEISPIEL-SELLER-ID',
+    telephone: '+49 30 123456'
+  },
   buyer: { name: 'Beispiel Empfänger', country: 'DE' },
-  paymentIban: 'DE00BEISPIEL0000000000',
+  paymentIban: 'DE89370400440532013000',
   lines: [{ description: 'Beispiel Leistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' }]
 };
 

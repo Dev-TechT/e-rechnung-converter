@@ -10,9 +10,10 @@
     "city": "Berlin",
     "postal_code": "10115",
     "country": "DE",
-    "vat_id": "DEMO-VAT-ID",
+    "vat_id": "DE123456789",
     "endpoint_id": "seller@example.invalid",
-    "endpoint_scheme_id": "EM"
+    "endpoint_scheme_id": "EM",
+    "telephone": "+49 30 123456"
   },
   "buyer": {
     "name": "Demo Empfänger",
@@ -23,7 +24,7 @@
     "endpoint_id": "buyer@example.invalid",
     "endpoint_scheme_id": "EM"
   },
-  "payment_iban": "DE00DEMO00000000000000",
+  "payment_iban": "DE89370400440532013000",
   "lines": [
     {
       "description": "Beratungsleistung",
