@@ -47,6 +47,7 @@
   <main>
     <section class="strip" aria-label="Sicherheitsversprechen">
       <span>Standardmäßig offline nutzbar</span>
+      <span>Eingebettetes PDF-XML lokal zuerst</span>
       <span>Eingebetteter PDF-Text lokal extrahierbar</span>
       <span>Scan-OCR nur mit geprüfter lokaler Engine</span>
       <span>Andere Agenten: <code>window.XInvoice.convertForAgent</code></span>
@@ -57,7 +58,7 @@
       <div class="section-head">
         <p class="eyebrow">Arbeitsfläche</p>
         <h2>Dokument einlesen, Felder prüfen, Artefakt erzeugen</h2>
-        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDFs mit einfachem eingebettetem Text können lokal als Vorschläge vorbefüllen; Scan-OCR sowie DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder ein Desktop/CLI-Modul. Fehlende Pflichtangaben werden vor dem Generieren markiert.</p>
+        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. Bei PDFs wird eingebettetes Factur-X/ZUGFeRD/XRechnung-XML lokal zuerst erkannt; danach kann einfacher eingebetteter PDF-Text als Vorschlag vorbefüllen. Scan-OCR sowie DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder ein Desktop/CLI-Modul. Fehlende Pflichtangaben werden vor dem Generieren markiert.</p>
       </div>
 
       <form id="invoiceForm" class="converter-layout">
@@ -68,7 +69,7 @@
             <input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml">
             <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet.</span>
           </label>
-          <div class="mini-note">PDF: einfacher eingebetteter Text wird lokal im Browser gelesen und als Vorschlag ins Formular übertragen. Scan-/Bild-PDFs sind keine OCR und bleiben low-confidence/review-required. DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder Desktop/CLI-Extraktion. Eingebettetes ZUGFeRD/Factur-X-XML ist der richtige nächste lokale Ausbau, wird in diesem Browser-Slice aber noch nicht behauptet.</div>
+          <div class="mini-note">PDF: eingebettetes Factur-X/ZUGFeRD/XRechnung-XML wird lokal zuerst gesucht und als Vorschlag ins Formular übertragen. Wenn kein Rechnungs-XML gefunden wird, liest der Browser einfachen eingebetteten PDF-Text. Scan-/Bild-PDFs sind keine OCR und bleiben low-confidence/review-required. DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder Desktop/CLI-Extraktion.</div>
 
           <div class="mini-note"><strong>Großes Formular als Ziel:</strong> Alle XRechnung-BT/BG-Felder sollen als Produktformular abbildbar werden. Der Ausbau erfolgt in Gruppen: Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert. Grundlage ist das offizielle <code>xrechnung-3.0.2-bundle-2026-01-31.zip</code>.</div>
 
@@ -158,7 +159,7 @@
         <p class="eyebrow">Offizielle Validierung</p>
         <h2>Was ist KoSIT und warum nicht einfach Server?</h2>
         <p>KoSIT ist der offizielle lokale Validator-Stack für XRechnung: ein Java-Validator plus XRechnung-Konfiguration mit XSD, Schematron, Codelisten und Szenarien. Er prüft, ob eine konkrete XML-Rechnung die XRechnung-Regeln erfüllt und erzeugt einen Report.</p>
-        <p>In diesem Produkt hostet GitHub nur die statischen Dateien. Der Browser kann XML erzeugen und Sanity-Checks ausführen; ein echter KoSIT-PASS wird erst behauptet, wenn der offizielle Validator auf dem Gerät des Benutzers für genau dieses XML gelaufen ist. Eine Browser-Portierung wäre möglich, aber sie muss Java/WebAssembly, ZIP-Artefakte, Schematron/XSLT und Report-Dateien sauber paketieren.</p>
+        <p>In diesem Produkt hostet GitHub nur die statischen Dateien. Der Browser kann XML erzeugen, eingebettetes PDF-Rechnungs-XML/Text lokal auslesen und Browser-Sanity-Checks ausführen. Ein echter KoSIT-PASS wird erst behauptet, wenn der offizielle Validator auf dem Gerät des Benutzers für genau dieses XML gelaufen ist. Eine direkte Java-KoSIT-Portierung in den Browser ist theoretisch möglich, aber schwergewichtig; pragmatischer ist zuerst ein browsernativer Validator mit XSD/WASM, Schematron/XSLT, Codelisten und KoSIT-CLI-Paritätskorpus.</p>
         <p><strong>Browser-Validierung Zielbild:</strong> Die Webseite soll XSD per WebAssembly, Schematron/XSLT im Browser und Codelisten aus dem XRechnung-Bundle lokal ausführen. Ein KoSIT-CLI-Referenzvergleich bleibt der Goldstandard, bis der Browser-Report nachweisbar dieselben Entscheidungen trifft. Erst dann wird aus Browser-Sanity eine echte browserlokale XRechnung-Validierung.</p>
       </div>
       <div class="validator-grid">
@@ -192,8 +193,8 @@ curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/release
       <ul>
         <li>Keine Datenbank, keine Cookies, kein Tracking.</li>
         <li>Keine Netzwerk-API im Generator-Code.</li>
-        <li>Lokale Dateiauswahl liest TXT/CSV/XML und einfachen eingebetteten PDF-Text nur im Browser-Tab.</li>
-        <li>PDFs werden nicht hochgeladen; erkannter PDF-Text ist nur ein Vorschlag. Scan-OCR sowie DOC/DOCX laufen nur über eine geprüfte lokale Browser-Engine oder ein lokales Desktop/CLI-Modul und bleiben prüfpflichtig.</li>
+        <li>Lokale Dateiauswahl liest TXT/CSV/XML, eingebettetes PDF-Rechnungs-XML und einfachen eingebetteten PDF-Text nur im Browser-Tab.</li>
+        <li>PDFs werden nicht hochgeladen; erkanntes PDF-XML/Text ist nur ein Vorschlag. Scan-OCR sowie DOC/DOCX laufen nur über eine geprüfte lokale Browser-Engine oder ein lokales Desktop/CLI-Modul und bleiben prüfpflichtig.</li>
       </ul>
       <p>Für andere Agenten/LLMs steht <code>window.XInvoice.convertForAgent(invoice, formatId)</code> bereit. Die API gibt strukturierte Fehler zurück, statt bei unvollständigen Daten still Artefakte zu bauen.</p>
     </section>

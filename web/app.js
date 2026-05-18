@@ -455,6 +455,7 @@
       issuedate: 'issueDate', rechnungsdatum: 'issueDate',
       duedate: 'dueDate', faelligkeitsdatum: 'dueDate', fälligkeitsdatum: 'dueDate',
       buyerreference: 'buyerReference', leitwegid: 'buyerReference', leitweg: 'buyerReference',
+      buyerreferencebt10: 'buyerReference',
       ordernumber: 'orderNumber', auftragsnummer: 'orderNumber', bestellreferenz: 'orderNumber',
       paymentiban: 'paymentIban', iban: 'paymentIban',
       paymentterms: 'paymentTerms', zahlungsbedingungen: 'paymentTerms',
@@ -490,14 +491,36 @@
 
   function parseXmlFields(text) {
     const fields = {};
+    const xml = String(text || '');
     const valueOf = (localName) => {
-      const match = String(text || '').match(new RegExp(`<(?:[A-Za-z0-9_-]+:)?${localName}[^>]*>([^<]+)</(?:[A-Za-z0-9_-]+:)?${localName}>`, 'i'));
-      return match ? match[1].trim() : '';
+      const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${localName}[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${localName}>`, 'i');
+      const match = xml.match(pattern);
+      return match ? match[1].replace(/<[^>]+>/g, '').trim() : '';
     };
-    const id = valueOf('ID');
-    const buyerReference = valueOf('BuyerReference');
+    const valueInside = (containerName, localName) => {
+      const openPattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${containerName}\\b[^>]*>`, 'i');
+      const open = xml.match(openPattern);
+      if (!open) return '';
+      const start = (open.index || 0) + open[0].length;
+      const afterOpen = xml.slice(start);
+      const closePattern = new RegExp(`</(?:[A-Za-z0-9_-]+:)?${containerName}>`, 'i');
+      const close = afterOpen.match(closePattern);
+      const container = close ? afterOpen.slice(0, close.index) : afterOpen;
+      const valuePattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${localName}\\b[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${localName}>`, 'i');
+      const match = container.match(valuePattern);
+      return match ? match[1].replace(/<[^>]+>/g, '').trim() : '';
+    };
+    const firstOf = (...names) => names.map(valueOf).find(Boolean) || '';
+    const id = valueInside('ExchangedDocument', 'ID') || firstOf('ID', 'InvoiceNumber');
+    const buyerReference = firstOf('BuyerReference', 'BuyerReferenceBT10');
+    const issueDate = firstOf('IssueDate', 'DateTimeString');
+    const paymentIban = firstOf('IBANID', 'IBAN', 'PayeeAccountID');
+    const paymentTerms = firstOf('Note', 'PaymentTerms');
     if (id) fields.invoiceNumber = id;
     if (buyerReference) fields.buyerReference = buyerReference;
+    if (issueDate && /^\d{4}-\d{2}-\d{2}$/.test(issueDate)) fields.issueDate = issueDate;
+    if (paymentIban) fields.paymentIban = paymentIban;
+    if (paymentTerms) fields.paymentTerms = paymentTerms;
     return fields;
   }
 
@@ -581,6 +604,7 @@
       usedLocalExtractor: true,
       extractionMethod: extraction.method || `${ext}-local-extractor`,
       confidence: extraction.confidence,
+      embeddedXml: extraction.embeddedXml,
       requiresHumanReview: true,
       requiresServer: false,
     };
@@ -673,11 +697,198 @@
     return null;
   }
 
+  function decodePdfAttachmentName(source, objectNumber) {
+    const objectPattern = new RegExp(`${objectNumber}\\s+0\\s+obj([\\s\\S]*?)endobj`, 'i');
+    const objectMatch = source.match(objectPattern);
+    const objectBody = objectMatch?.[1] || '';
+    const nameMatch = objectBody.match(/\/(?:UF|F)\s*\((?:\\.|[^\\()])*\)/);
+    if (!nameMatch) return '';
+    const literal = nameMatch[0].match(/\((?:\\.|[^\\()])*\)/)?.[0];
+    return literal ? decodePdfLiteralString(literal.slice(1, -1)) : '';
+  }
+
+  function parsePdfDictionaryNumber(dictionaryText, name) {
+    const escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = String(dictionaryText || '').match(new RegExp(`/${escaped}\\s+(\\d+)\\b(?!\\s+\\d+\\s+R)`, 'i'));
+    return match ? Number.parseInt(match[1], 10) : null;
+  }
+
+  function parsePdfObjects(source) {
+    const objects = [];
+    const startPattern = /(\d+)\s+0\s+obj\b/g;
+    let start;
+    while ((start = startPattern.exec(source))) {
+      const objectNumber = start[1];
+      const bodyStart = startPattern.lastIndex;
+      const chunk = source.slice(bodyStart);
+      const streamStart = chunk.search(/\bstream\r?\n/);
+      const firstEndObjIndex = chunk.indexOf('endobj');
+      if (firstEndObjIndex < 0) break;
+      let objectEndRelative = firstEndObjIndex + 'endobj'.length;
+      if (streamStart >= 0 && streamStart < firstEndObjIndex) {
+        const streamHeader = chunk.match(/\bstream(\r?\n)/);
+        const streamDataStart = streamStart + (streamHeader ? streamHeader[0].length : 'stream\n'.length);
+        const dictionaryText = chunk.slice(0, streamStart);
+        const declaredLength = parsePdfDictionaryNumber(dictionaryText, 'Length');
+        if (Number.isInteger(declaredLength) && declaredLength >= 0) {
+          const expectedEnd = streamDataStart + declaredLength;
+          const afterStreamData = chunk.slice(expectedEnd);
+          const declaredEndMatch = afterStreamData.match(/^\r?\n?endstream\s*endobj/i);
+          if (declaredEndMatch) objectEndRelative = expectedEnd + declaredEndMatch[0].length;
+          else objectEndRelative = expectedEnd;
+        } else {
+          return objects;
+        }
+      }
+      const objectEnd = bodyStart + objectEndRelative;
+      const body = source.slice(bodyStart, objectEnd).replace(/endobj\s*$/i, '').trim();
+      const streamIndex = body.search(/\bstream\r?\n/);
+      const dictionaryText = streamIndex >= 0 ? body.slice(0, streamIndex) : body;
+      const hasStream = streamIndex >= 0;
+      const streamMatch = hasStream ? body.match(/stream\r?\n([\s\S]*?)\r?\nendstream\s*$/i) : null;
+      objects.push({ objectNumber, body, dictionaryText, hasStream, stream: streamMatch?.[1] || '' });
+      startPattern.lastIndex = objectEnd;
+    }
+    return objects;
+  }
+
+  function getPdfRenderedObjectReferences(source, objects = parsePdfObjects(source)) {
+    const rendered = new Set();
+    const addRefs = (text) => {
+      const refPattern = /(\d+)\s+0\s+R/g;
+      let ref;
+      while ((ref = refPattern.exec(text || ''))) rendered.add(ref[1]);
+    };
+    for (const object of objects) {
+      if (/\/Type\s*\/Page\b/i.test(object.dictionaryText)) addRefs(object.dictionaryText);
+      if (/\/Contents\b|\/Resources\b|\/XObject\b|\/Font\b|\/Pattern\b|\/Shading\b/i.test(object.dictionaryText)
+          && !/\/Type\s*\/Filespec\b/i.test(object.dictionaryText)) {
+        addRefs(object.dictionaryText);
+      }
+    }
+    return rendered;
+  }
+
+  function getPdfFacturXMetadata(source, objects = parsePdfObjects(source)) {
+    let metadata = '';
+    const catalog = objects.find((object) => /\/Type\s*\/Catalog\b/i.test(object.dictionaryText));
+    const refs = [];
+    const catalogMetadata = catalog?.dictionaryText.match(/\/Metadata\s+(\d+)\s+0\s+R/i)?.[1];
+    if (catalogMetadata) refs.push(catalogMetadata);
+    for (const object of objects) {
+      if (/\/Type\s*\/Metadata\b/i.test(object.dictionaryText) && object.stream) refs.push(object.objectNumber);
+    }
+    for (const ref of new Set(refs)) {
+      const object = objects.find((candidate) => candidate.objectNumber === ref);
+      if (object?.stream && /\/Type\s*\/Metadata\b/i.test(object.dictionaryText)) metadata += `\n${object.stream}`;
+    }
+    const metadataFilename = metadata.match(/<fx:DocumentFileName>([^<]+)</i)?.[1]
+      || metadata.match(/<zf:DocumentFileName>([^<]+)</i)?.[1]
+      || '';
+    const hasFacturXMetadata = /urn:factur-x:pdfa:CrossIndustryDocument:invoice/i.test(metadata)
+      || /urn:ferd:CrossIndustryDocument:invoice/i.test(metadata)
+      || Boolean(metadataFilename);
+    return { hasFacturXMetadata, metadataFilename };
+  }
+
+  function getPdfEmbeddedFileReferences(source) {
+    const refs = new Map();
+    const objects = parsePdfObjects(source);
+    for (const object of objects) {
+      const fileSpecObjectNumber = object.objectNumber;
+      const dictionary = object.dictionaryText;
+      if (object.hasStream) continue;
+      if (!/\/EF\s*<</i.test(dictionary)) continue;
+      if (!/\/Type\s*\/Filespec\b/i.test(dictionary)) continue;
+      const efMatch = dictionary.match(/\/EF\s*<<([\s\S]*?)>>/i);
+      if (!efMatch) continue;
+      const filename = decodePdfAttachmentName(source, fileSpecObjectNumber) || 'embedded-invoice.xml';
+      const refPattern = /\/(?:F|UF)\s+(\d+)\s+0\s+R/g;
+      let ref;
+      while ((ref = refPattern.exec(efMatch[1]))) {
+        refs.set(ref[1], { filename, fileSpecObjectNumber, viaFileSpec: true });
+      }
+    }
+    const { hasFacturXMetadata, metadataFilename } = getPdfFacturXMetadata(source, objects);
+    if (hasFacturXMetadata) {
+      const renderedRefs = getPdfRenderedObjectReferences(source, objects);
+      for (const object of objects) {
+        const objectNumber = object.objectNumber;
+        if (renderedRefs.has(objectNumber)) continue;
+        const descriptor = object.dictionaryText || '';
+        const stream = object.stream || '';
+        if (!stream) continue;
+        if (!/\/Type\s*\/EmbeddedFile\b/i.test(descriptor)) continue;
+        if (/\/Filter\b/i.test(descriptor)) continue;
+        if (!/<(?:[A-Za-z0-9_-]+:)?CrossIndustryInvoice\b/i.test(stream)) continue;
+        refs.set(objectNumber, { filename: metadataFilename || 'factur-x.xml', fileSpecObjectNumber: null, viaMetadata: true });
+      }
+    }
+    return refs;
+  }
+
+  function hasInvoiceProfileMarker(text) {
+    const xml = String(text || '');
+    return /urn:xeinkauf\.de:kosit:xrechnung/i.test(xml)
+      || /urn:cen\.eu:en16931:2017/i.test(xml)
+      || /urn:factur-x:pdfa:CrossIndustryDocument:invoice/i.test(xml)
+      || /urn:ferd:CrossIndustryDocument:invoice/i.test(xml)
+      || /<[^>]*CustomizationID[^>]*>[\s\S]*(?:xrechnung|en16931)/i.test(xml)
+      || /<[^>]*GuidelineSpecifiedDocumentContextParameter[^>]*>[\s\S]*(?:xrechnung|en16931|factur-x|ferd)/i.test(xml);
+  }
+
+  function extractEmbeddedXmlFromPdfSource(source) {
+    if (!/\/EmbeddedFiles\b|\/EmbeddedFile\b/i.test(source)) return null;
+    const embeddedRefs = getPdfEmbeddedFileReferences(source);
+    if (embeddedRefs.size === 0) return null;
+    const xmlStreams = [];
+    const objects = parsePdfObjects(source);
+    for (const object of objects) {
+      const objectNumber = object.objectNumber;
+      const attachment = embeddedRefs.get(objectNumber);
+      if (!attachment) continue;
+      const descriptor = object.dictionaryText || '';
+      const stream = object.stream || '';
+      if (!stream) continue;
+      if (/\/Filter\b/i.test(descriptor)) continue;
+      if (!/\/Type\s*\/EmbeddedFile\b/i.test(descriptor)) continue;
+      if (!/<(?:[A-Za-z0-9_-]+:)?(?:CrossIndustryInvoice|Invoice|CreditNote)\b/i.test(stream)) continue;
+      if (!hasInvoiceProfileMarker(stream)) continue;
+      xmlStreams.push({ filename: attachment.filename, content: stream.trim() });
+    }
+    return xmlStreams[0] || null;
+  }
+
+  function looksLikeInvoiceXml(text) {
+    return /<(?:[A-Za-z0-9_-]+:)?(?:CrossIndustryInvoice|Invoice|CreditNote)\b/i.test(String(text || '')) && hasInvoiceProfileMarker(text);
+  }
+
   async function browserLocalPdfTextExtractor(file) {
     const bytes = await bytesFromLocalPdfInput(file);
     const source = bytesToBinaryString(bytes);
     if (!source.startsWith('%PDF-')) {
       return { ok: false, method: 'browser-local-pdf-text', confidence: 0, message: 'PDF-Datei konnte lokal nicht als PDF gelesen werden.' };
+    }
+    const embeddedXml = extractEmbeddedXmlFromPdfSource(source);
+    if (embeddedXml) {
+      const fields = parseXmlFields(embeddedXml.content);
+      if (looksLikeInvoiceXml(embeddedXml.content) && hasSuggestedFields(fields)) {
+        return {
+          ok: true,
+          method: 'browser-local-pdf-embedded-xml',
+          confidence: 0.9,
+          text: embeddedXml.content,
+          fields,
+          embeddedXml: {
+            filename: embeddedXml.filename,
+            format: /CrossIndustryInvoice/i.test(embeddedXml.content) ? 'cii' : 'xml',
+          },
+        };
+      }
+      return { ok: false, method: 'browser-local-pdf-embedded-xml', confidence: 0.1, message: 'Eingebettetes XML im PDF ist kein erkennbares Factur-X/ZUGFeRD/XRechnung-Rechnungs-XML oder enthält keine zuordenbaren Rechnungsfelder.' };
+    }
+    if (/\/EmbeddedFiles\b|\/EmbeddedFile\b/i.test(source)) {
+      return { ok: false, method: 'browser-local-pdf-embedded-xml', confidence: 0.1, message: 'PDF enthält Anhänge, aber kein erkennbares eingebettetes Rechnungs-XML für Factur-X/ZUGFeRD/XRechnung.' };
     }
     if (/\/Filter\s*\/FlateDecode/i.test(source)) {
       return { ok: false, method: 'browser-local-pdf-text', confidence: 0.15, message: 'PDF enthält komprimierte Textstreams. Dieser lokale Spike liest nur einfachen eingebetteten PDF-Text; für diese Datei ist eine erweiterte lokale PDF-Engine oder OCR mit Human Review nötig.' };
@@ -741,14 +952,15 @@
       generation: { mode: 'browser-only', output: ['UBL XML', 'CII XML', 'ZUGFeRD/Factur-X preparation package'] },
       ocr: {
         mode: 'browser-local-engine-for-scans-or-documents',
-        activeWhen: 'A reviewed local OCR/DOC/DOCX extractor is registered via registerLocalExtractor or XInvoiceLocalExtractors. The built-in PDF path extracts simple embedded text only and is not OCR.',
+        activeWhen: 'A reviewed local OCR/DOC/DOCX extractor is registered via registerLocalExtractor or XInvoiceLocalExtractors. The built-in PDF path extracts embedded XML first, then simple embedded text; it is not OCR.',
         builtInPdfTextExtraction: {
-          mode: 'simple-embedded-text-only',
-          method: 'browser-local-pdf-text',
+          mode: 'embedded-xml-first-then-simple-embedded-text',
+          method: 'browser-local-pdf-embedded-xml-or-text',
           requiresServer: false,
           requiresHumanReview: true,
-          limitations: ['no OCR for scanned/image PDFs', 'no compressed PDF stream decoding in this minimal spike', 'suggestions only'],
+          limitations: ['no OCR for scanned/image PDFs', 'no compressed PDF stream decoding in this minimal slice', 'suggestions only'],
         },
+        browserValidationStrategy: getBrowserValidationStrategy(),
         requiresHumanReview: true,
       },
       kosit: {
@@ -756,6 +968,61 @@
         browserOnlyStatus: 'not shipped as a pure browser runtime in this product yet',
         explainsWhyNotPureBrowser: 'KoSIT is a Java validator stack with XRechnung ZIP artifacts, XSD, Schematron, code lists and report files. It can run on the user device today via local CLI/Desktop; a pure browser/WebAssembly port is possible but must be packaged and tested separately before any KoSIT-PASS claim.',
       },
+    };
+  }
+
+  function getBrowserValidationStrategy() {
+    return {
+      goal: 'browser-local-xrechnung-validation',
+      officialKoSITInBrowser: {
+        feasible: 'theoretical-heavy-port',
+        recommendation: 'do-not-port-java-first',
+        reason: 'Official KoSIT is a Java CLI validator. A browser port would need JVM/WebAssembly, filesystem emulation, validator JAR, XRechnung ZIP/config handling, Schematron/XSLT and report plumbing.',
+      },
+      browserNativePipeline: {
+        recommendation: 'build-browser-native-xsd-schematron-first',
+        steps: ['xml-parse', 'syntax-detect', 'xsd-wasm', 'schematron-xslt', 'codelists', 'kosit-cli-parity-corpus'],
+        candidateRuntimes: ['xmllint-wasm/libxml2 for XSD', 'SaxonJS or precompiled Schematron XSLT for Schematron'],
+      },
+      claimPolicy: {
+        beforeParity: 'Browser validator in progress; KoSIT CLI remains reference.',
+        afterParity: 'Browser validation using bundled XRechnung/KoSIT rule artifacts; parity-checked against KoSIT CLI for the shipped smoke corpus.',
+        neverWithoutProof: ['official KoSIT ran in browser', 'KoSIT-valid', 'rechtssicher', '100% DSGVO'],
+      },
+    };
+  }
+
+  function validateXRechnungInBrowser(xml, options = {}) {
+    const content = String(xml || '');
+    const formatId = options.formatId || (/<rsm:CrossIndustryInvoice\b|<CrossIndustryInvoice\b/i.test(content) ? 'xrechnung-cii' : 'xrechnung-ubl');
+    const checks = [];
+    const errors = [];
+    function check(name, condition, message) {
+      const ok = Boolean(condition);
+      checks.push({ name, ok });
+      if (!ok) errors.push(message);
+    }
+    check('well-formed-ish XML', /^\s*</.test(content) && !/<script[\s>]/i.test(content), 'XML ist leer, kein XML oder enthält Script-Markup.');
+    if (formatId === 'xrechnung-cii') {
+      check('CII root', /<(?:[A-Za-z0-9_-]+:)?CrossIndustryInvoice\b/i.test(content), 'CII CrossIndustryInvoice Root fehlt.');
+      check('XRechnung guideline', /urn:xeinkauf\.de:kosit:xrechnung_3\.0/i.test(content), 'XRechnung Guideline/Customization fehlt.');
+      check('BuyerReference', /<(?:[A-Za-z0-9_-]+:)?BuyerReference\b[^>]*>\s*[^<\s]/i.test(content), 'BuyerReference fehlt.');
+    } else {
+      check('UBL Invoice or CreditNote root', /<(?:Invoice|CreditNote)\b/i.test(content), 'UBL Invoice/CreditNote Root fehlt.');
+      check('CustomizationID', /<(?:[A-Za-z0-9_-]+:)?CustomizationID\b[^>]*>[\s\S]*urn:xeinkauf\.de:kosit:xrechnung_3\.0/i.test(content), 'XRechnung CustomizationID fehlt.');
+      check('BuyerReference', /<(?:[A-Za-z0-9_-]+:)?BuyerReference\b[^>]*>\s*[^<\s]/i.test(content), 'BuyerReference fehlt.');
+    }
+    return {
+      ok: errors.length === 0,
+      engine: 'browser-xrechnung-sanity',
+      officialKoSIT: false,
+      parityWithKoSIT: 'not-established',
+      requiresServer: false,
+      formatId,
+      artifacts: ['xrechnung-3.0.2-validator-configuration-2026-01-31.zip', 'xrechnung-3.0.2-bundle-2026-01-31.zip'],
+      checks,
+      errors,
+      warnings: ['Browser-Sanity ist noch kein offizieller KoSIT-PASS. KoSIT CLI bleibt Referenz, bis XSD/Schematron/Codelist-Parität nachgewiesen ist.'],
     };
   }
 
@@ -981,5 +1248,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, convertForAgent, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

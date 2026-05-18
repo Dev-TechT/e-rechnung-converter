@@ -56,6 +56,33 @@ function makeTinyTextPdf(lines) {
   return Buffer.from(pdf, 'latin1');
 }
 
+function makePdfWithAttachment(filename, attachmentText) {
+  const escapedName = String(filename).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const content = 'BT /F1 12 Tf 50 760 Td (Factur-X embedded XML fixture) Tj ET';
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(factur-x.xml) 6 0 R] >> >> >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream\nendobj\n`,
+    `6 0 obj\n<< /Type /Filespec /F (${escapedName}) /UF (${escapedName}) /EF << /F 7 0 R >> >>\nendobj\n`,
+    `7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj\n`,
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf, 'latin1'));
+    pdf += object;
+  }
+  const xrefOffset = Buffer.byteLength(pdf, 'latin1');
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (const offset of offsets.slice(1)) pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
+}
+
 const pendingTests = [];
 
 function reportFailure(name, error) {
@@ -119,6 +146,7 @@ test('product page includes local document intake and PDF text extraction archit
   assert(html.includes('id="sourceFile"'), 'missing local file input');
   assert(html.includes('accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml"'), 'missing accepted invoice formats');
   assert(html.includes('Datei bleibt in diesem Browser-Tab'), 'missing local-only upload wording');
+  assert(html.includes('Eingebettetes PDF-XML lokal zuerst'), 'missing embedded PDF XML wording');
   assert(html.includes('Eingebetteter PDF-Text lokal extrahierbar'), 'missing embedded PDF text wording');
   assert(html.includes('Scan-OCR nur mit geprüfter lokaler Engine'), 'missing scan OCR boundary wording');
   assert(html.includes('GitHub Pages liefert nur HTML, CSS und JavaScript aus'), 'missing GitHub static hosting wording');
@@ -131,7 +159,7 @@ test('product page exposes full XRechnung product direction and advanced field g
     'Alle XRechnung-BT/BG-Felder',
     'Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert',
     'Fehlende Pflichtangaben werden vor dem Generieren markiert',
-    'Eingebettetes ZUGFeRD/Factur-X-XML ist der richtige nächste lokale Ausbau, wird in diesem Browser-Slice aber noch nicht behauptet',
+    'eingebettetes Factur-X/ZUGFeRD/XRechnung-XML wird lokal zuerst gesucht',
     'xrechnung-3.0.2-bundle-2026-01-31.zip',
   ]) {
     assert(html.includes(needle), `missing full product direction copy: ${needle}`);
@@ -150,6 +178,32 @@ test('browser validator roadmap targets local XSD Schematron and codelist valida
     assert(html.includes(needle), `missing browser validator roadmap copy: ${needle}`);
   }
   assert(!html.includes('KoSIT-valid im Browser verfügbar'), 'must not claim browser KoSIT availability before implementation');
+});
+
+test('browser validation strategy exposes a realistic phased KoSIT-in-browser contract', () => {
+  const strategy = app.getBrowserValidationStrategy();
+  assert(strategy.goal === 'browser-local-xrechnung-validation', 'strategy should target browser-local validation');
+  assert(strategy.officialKoSITInBrowser.feasible === 'theoretical-heavy-port', 'official Java KoSIT browser port should be classified as theoretical/heavy');
+  assert(strategy.officialKoSITInBrowser.recommendation === 'do-not-port-java-first', 'should not start by porting Java KoSIT');
+  assert(strategy.browserNativePipeline.steps.includes('xsd-wasm'), 'browser-native pipeline should include XSD/WASM');
+  assert(strategy.browserNativePipeline.steps.includes('schematron-xslt'), 'browser-native pipeline should include Schematron/XSLT');
+  assert(strategy.claimPolicy.beforeParity.includes('KoSIT CLI remains reference'), 'pre-parity wording must keep KoSIT CLI as reference');
+});
+
+test('browser xrechnung validation API returns local-only structured reports without official KoSIT claims', () => {
+  const valid = app.generateInvoice(sampleInvoice(), 'xrechnung-ubl');
+  let report = app.validateXRechnungInBrowser(valid.content, { formatId: 'xrechnung-ubl' });
+  assert(report.ok === true, 'generated UBL should pass browser-local structural checks');
+  assert(report.engine === 'browser-xrechnung-sanity', 'browser validator should identify non-official engine');
+  assert(report.requiresServer === false, 'browser validation must be local-only');
+  assert(report.officialKoSIT === false, 'browser sanity must not claim official KoSIT');
+  assert(report.parityWithKoSIT === 'not-established', 'browser parity should not be claimed yet');
+  assert(report.artifacts.includes('xrechnung-3.0.2-validator-configuration-2026-01-31.zip'), 'report should name versioned XRechnung config artifact');
+  assert(report.checks.some((check) => check.name === 'BuyerReference' && check.ok), 'report should check BuyerReference');
+
+  report = app.validateXRechnungInBrowser('<Invoice></Invoice>', { formatId: 'xrechnung-ubl' });
+  assert(report.ok === false, 'malformed UBL should fail browser-local report');
+  assert(report.errors.some((error) => /CustomizationID|BuyerReference|UBL/i.test(error)), 'malformed report should include structural error messages');
 });
 
 test('local document intake parses csv txt and xml snippets without network', () => {
@@ -310,6 +364,231 @@ test('built-in browser-local PDF text extractor returns structured errors for br
   assert(Array.isArray(parsed.errors) && parsed.errors.length > 0, 'broken PDF should return structured errors');
 });
 
+test('pdf intake extracts embedded Factur-X or ZUGFeRD XML before text OCR fallback', async () => {
+  const embeddedXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>FX-1</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-FX-1</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'factur-x.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithAttachment('factur-x.xml', embeddedXml)
+  });
+  assert(parsed.ok === true, 'embedded XML PDF should parse locally');
+  assert(parsed.extractionMethod === 'browser-local-pdf-embedded-xml', 'embedded XML should be preferred over text extraction');
+  assert(parsed.embeddedXml && /invoice\.xml$|factur-x\.xml$/.test(parsed.embeddedXml.filename), 'embedded XML metadata missing');
+  assert(parsed.fields.invoiceNumber === 'FX-1', 'embedded CII invoice id missing');
+  assert(parsed.fields.buyerReference === 'LW-FX-1', 'embedded CII buyer reference missing');
+  assert(parsed.requiresHumanReview === true, 'embedded XML mapping still needs human review');
+  assert(parsed.requiresServer === false, 'embedded XML extraction must not require server');
+});
+
+test('embedded XML extraction rejects unsafe or non-invoice PDF attachments', async () => {
+  const parsed = await app.parseLocalDocument({
+    name: 'attachment.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithAttachment('payload.js', '<script>alert(1)</script>')
+  });
+  assert(parsed.ok === false, 'non-invoice embedded attachment must not parse as invoice');
+  assert(parsed.requiresServer === false, 'unsafe attachment must not require server fallback');
+  assert(Object.keys(parsed.fields).length === 0, 'unsafe attachment must not invent fields');
+  assert(parsed.errors.some((error) => /eingebettetes XML|Rechnungs-XML|Factur-X|ZUGFeRD/i.test(error)), 'unsafe attachment should explain embedded XML boundary');
+});
+
+test('embedded XML extraction ignores invoice-looking page streams that are not file attachments', async () => {
+  const fakeInvoicePagePdf = makePdfWithAttachment('readme.txt', 'not invoice text').toString('latin1')
+    .replace('Factur-X embedded XML fixture', '<rsm:CrossIndustryInvoice><ram:ID>FALSE-PAGE</ram:ID><ram:BuyerReference>LW-FALSE</ram:BuyerReference></rsm:CrossIndustryInvoice>');
+  const parsed = await app.parseLocalDocument({
+    name: 'fake-page-stream.pdf',
+    type: 'application/pdf',
+    bytes: Buffer.from(fakeInvoicePagePdf, 'latin1')
+  });
+  assert(parsed.ok === false, 'invoice-looking page stream must not parse as embedded invoice XML');
+  assert(parsed.extractionMethod === 'browser-local-pdf-embedded-xml', 'should fail in embedded XML boundary, not text fallback');
+  assert(Object.keys(parsed.fields).length === 0, 'page-stream XML must not prefill fields');
+});
+
+test('embedded XML extraction requires invoice profiles not generic XML-looking invoices', async () => {
+  const genericXml = '<Invoice><cbc:ID>GENERIC-1</cbc:ID><cbc:BuyerReference>LW-GENERIC</cbc:BuyerReference></Invoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'generic.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithAttachment('invoice.xml', genericXml)
+  });
+  assert(parsed.ok === false, 'generic XML invoice without profile markers should not be treated as Factur-X/ZUGFeRD/XRechnung');
+  assert(Object.keys(parsed.fields).length === 0, 'generic embedded XML must not prefill fields');
+});
+
+function makePdfWithNonFilespecEfAttachment(attachmentText) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(not-filespec.xml) 6 0 R] >> >> >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n',
+    '6 0 obj\n<< /Type /NotAFileSpec /EF << /F 7 0 R >> >>\nendobj\n',
+    `7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj\n`,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('embedded XML extraction rejects EF references from non-Filespec objects', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>BAD-EF</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-BAD-EF</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'not-filespec.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithNonFilespecEfAttachment(profiledXml)
+  });
+  assert(parsed.ok === false, 'non-Filespec /EF reference must not parse as invoice attachment');
+  assert(Object.keys(parsed.fields).length === 0, 'non-Filespec /EF reference must not prefill fields');
+});
+
+function makePdfWithFakeFilespecInsidePageStream(attachmentText) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const fakeContent = 'BT (/Type /Filespec /EF << /F 7 0 R >>) Tj ET';
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(fake.xml) 5 0 R] >> >> >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 5 0 R >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(fakeContent, 'latin1')} >>\nstream\n${fakeContent}\nendstream\nendobj\n`,
+    `7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj\n`,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('embedded XML extraction ignores fake Filespec EF tokens inside page streams', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>FAKE-STREAM</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-FAKE-STREAM</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'fake-filespec-stream.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithFakeFilespecInsidePageStream(profiledXml)
+  });
+  assert(parsed.ok === false, 'Filespec-looking stream text must not authorize an embedded XML stream');
+  assert(Object.keys(parsed.fields).length === 0, 'Filespec-looking stream text must not prefill fields');
+});
+
+function makePdfWithMetadataAndPageEmbeddedFileStream(attachmentText) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const xmp = '<rdf:Description xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#"><fx:DocumentFileName>factur-x.xml</fx:DocumentFileName></rdf:Description>';
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Metadata 4 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 5 0 R >>\nendobj\n',
+    `4 0 obj\n<< /Type /Metadata /Subtype /XML /Length ${Buffer.byteLength(xmp, 'latin1')} >>\nstream\n${xmp}\nendstream\nendobj\n`,
+    `5 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj\n`,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('metadata-only embedded XML extraction rejects page content streams', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>META-PAGE</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-META-PAGE</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'metadata-page-stream.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithMetadataAndPageEmbeddedFileStream(profiledXml)
+  });
+  assert(parsed.ok === false, 'Factur-X metadata must not make page content an embedded invoice attachment');
+  assert(Object.keys(parsed.fields).length === 0, 'metadata page stream must not prefill fields');
+});
+
+function makePdfWithEmptyStreamFilespecEf(attachmentText) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(empty-stream-filespec.xml) 6 0 R] >> >> >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n',
+    '6 0 obj\n<< /Type /Filespec /F (empty-stream-filespec.xml) /EF << /F 7 0 R >> /Length 0 >>\nstream\n\nendstream\nendobj\n',
+    `7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj\n`,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('embedded XML extraction rejects Filespec EF tokens from empty stream objects', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>EMPTY-STREAM-EF</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-EMPTY-STREAM-EF</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'empty-stream-filespec.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithEmptyStreamFilespecEf(profiledXml)
+  });
+  assert(parsed.ok === false, 'Filespec/EF tokens on stream objects must not authorize invoice attachments');
+  assert(Object.keys(parsed.fields).length === 0, 'empty stream Filespec/EF tokens must not prefill fields');
+});
+
+function makePdfWithFakeMetadataTokenInPageStream(attachmentText) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const fakeMetadataContent = 'BT (<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>) Tj ET';
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n',
+    `4 0 obj\n<< /Length ${Buffer.byteLength(fakeMetadataContent, 'latin1')} >>\nstream\n${fakeMetadataContent}\nendstream\nendobj\n`,
+    `7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj\n`,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('metadata-only embedded XML extraction ignores fake Factur-X metadata tokens in page streams', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>FAKE-METADATA</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-FAKE-METADATA</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'fake-metadata-page-token.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithFakeMetadataTokenInPageStream(profiledXml)
+  });
+  assert(parsed.ok === false, 'Factur-X-looking page text must not enable metadata fallback');
+  assert(Object.keys(parsed.fields).length === 0, 'fake metadata page text must not prefill fields');
+});
+
+function makePdfWithFakeObjectsInsidePageStream(attachmentText) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const injected = `BT (visible text) Tj ET\nendobj\n6 0 obj\n<< /Type /Filespec /F (fake.xml) /EF << /F 7 0 R >> >>\nendobj\n7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream`;
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(fake.xml) 6 0 R] >> >> >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 5 0 R >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(injected, 'latin1')} >>\nstream\n${injected}\nendstream\nendobj\n`,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('embedded XML extraction ignores fake PDF objects injected inside page streams', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>INJECTED-OBJECT</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-INJECTED-OBJECT</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  const parsed = await app.parseLocalDocument({
+    name: 'injected-objects-in-stream.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithFakeObjectsInsidePageStream(profiledXml)
+  });
+  assert(parsed.ok === false, 'object syntax inside page streams must not define attachments');
+  assert(Object.keys(parsed.fields).length === 0, 'object syntax inside page streams must not prefill fields');
+});
+
+function makePdfWithEarlyEndstreamInjectedObjects(attachmentText, useIndirectLength = false) {
+  const escapedPayload = String(attachmentText).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const injected = `BT (visible text) Tj ET\nendstream\nendobj\n6 0 obj\n<< /Type /Filespec /F (fake.xml) /EF << /F 7 0 R >> >>\nendobj\n7 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${Buffer.byteLength(escapedPayload, 'latin1')} >>\nstream\n${escapedPayload}\nendstream\nendobj`;
+  const lengthObject = useIndirectLength ? `8 0 obj\n${Buffer.byteLength(injected, 'latin1')}\nendobj\n` : '';
+  const lengthValue = useIndirectLength ? '8 0 R' : String(Buffer.byteLength(injected, 'latin1'));
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(fake.xml) 6 0 R] >> >> >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 5 0 R >>\nendobj\n',
+    `5 0 obj\n<< /Length ${lengthValue} >>\nstream\n${injected}\nendstream\nendobj\n`,
+    lengthObject,
+  ];
+  return Buffer.from(`%PDF-1.4\n${objects.join('')}%%EOF\n`, 'latin1');
+}
+
+test('embedded XML extraction ignores early endstream object injection inside page streams', async () => {
+  const profiledXml = '<rsm:CrossIndustryInvoice><rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext><rsm:ExchangedDocument><ram:ID>EARLY-ENDSTREAM</ram:ID></rsm:ExchangedDocument><ram:BuyerReference>LW-EARLY-ENDSTREAM</ram:BuyerReference></rsm:CrossIndustryInvoice>';
+  let parsed = await app.parseLocalDocument({
+    name: 'early-endstream-injection.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithEarlyEndstreamInjectedObjects(profiledXml)
+  });
+  assert(parsed.ok === false, 'early endstream bytes inside page streams must not define attachments');
+  assert(Object.keys(parsed.fields).length === 0, 'early endstream bytes inside page streams must not prefill fields');
+
+  parsed = await app.parseLocalDocument({
+    name: 'early-endstream-indirect-length-injection.pdf',
+    type: 'application/pdf',
+    bytes: makePdfWithEarlyEndstreamInjectedObjects(profiledXml, true)
+  });
+  assert(parsed.ok === false, 'indirect-length page streams must not expose injected fake attachment objects');
+  assert(Object.keys(parsed.fields).length === 0, 'indirect-length page stream injection must not prefill fields');
+});
+
 test('all shipped browser runtime files avoid network and persistence APIs', () => {
   const root = path.join(__dirname, '..', 'web');
   const runtimeFiles = [];
@@ -335,7 +614,7 @@ test('browser execution model explains GitHub Pages hosting, user hardware and K
   assert(model.githubPages === 'static-hosting-only', 'GitHub Pages should only host static files');
   assert(model.runsOnUserHardware === true, 'browser work should run on user hardware');
   assert(model.requiresApplicationServer === false, 'product should not need an application server');
-  assert(model.ocr.builtInPdfTextExtraction.method === 'browser-local-pdf-text', 'built-in PDF text extractor should be documented');
+  assert(model.ocr.builtInPdfTextExtraction.method === 'browser-local-pdf-embedded-xml-or-text', 'built-in PDF extractor should be documented');
   assert(model.kosit.officialValidator === 'KoSIT validator + validator-configuration-xrechnung', 'KoSIT stack should be explicit');
   assert(model.kosit.browserOnlyStatus.includes('not shipped'), 'browser KoSIT boundary should be honest');
   assert(model.kosit.explainsWhyNotPureBrowser.includes('Java'), 'KoSIT explanation should mention Java');
