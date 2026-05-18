@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "xrechnung-converter"
 version = "0.1.0"
-description = "Local-first invoice to XRechnung candidate XML converter MVP"
+description = "Local-first invoice to XRechnung candidate XML converter"
 requires-python = ">=3.11"
 dependencies = []
 

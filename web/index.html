@@ -26,7 +26,8 @@
       <div class="hero-copy">
         <p class="eyebrow">Local-first · Browser-only · für echte Rechnungen vorbereitet</p>
         <h1>Rechnungen in E-Rechnungsformate umwandeln, ohne sie hochzuladen.</h1>
-        <p class="lead">Erzeuge XRechnung UBL, XRechnung CII und EN16931 UBL direkt im Browser. Für ZUGFeRD/Factur-X erstellt die Seite ein lokales Vorbereitungspaket; echtes PDF/A-3 wird anschließend lokal mit Desktop-/CLI-Tools gebaut und validiert.</p>
+        <p class="lead">GitHub Pages liefert nur HTML, CSS und JavaScript aus. Generierung, Feldprüfung und lokale Dokumentauswertung laufen im Browser auf der Hardware des Benutzers; kein Dev-TechT-Server verarbeitet Rechnungsdaten.</p>
+        <p class="lead small-lead">Für ZUGFeRD/Factur-X erstellt die Seite ein lokales Vorbereitungspaket. Echte PDF/A-3-Montage und offizielle Validator-Reports laufen anschließend auf dem Gerät des Benutzers.</p>
         <div class="actions">
           <a class="button primary" href="#converter">Rechnung starten</a>
           <a class="button secondary" href="#validators">KoSIT beziehen</a>
@@ -46,6 +47,7 @@
   <main>
     <section class="strip" aria-label="Sicherheitsversprechen">
       <span>Standardmäßig offline nutzbar</span>
+      <span>OCR-Engine lokal einbindbar</span>
       <span>Andere Agenten: <code>window.XInvoice.convertForAgent</code></span>
       <span>Keine automatische OCR-Übertreibung</span>
     </section>
@@ -54,7 +56,7 @@
       <div class="section-head">
         <p class="eyebrow">Arbeitsfläche</p>
         <h2>Dokument einlesen, Felder prüfen, Artefakt erzeugen</h2>
-        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDF/DOC/DOCX brauchen eine lokale Desktop-Extraktion mit Sichtprüfung, damit keine falschen Rechnungsdaten geraten werden.</p>
+        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDF/DOC/DOCX brauchen eine lokale OCR/PDF-Engine im Browser oder ein lokales Desktop/CLI-Modul; automatisch erkannte Felder bleiben Vorschläge und müssen geprüft werden.</p>
       </div>
 
       <form id="invoiceForm" class="converter-layout">
@@ -65,7 +67,7 @@
             <input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml">
             <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet.</span>
           </label>
-          <div class="mini-note">PDF/DOC/DOCX: Dieses Webprodukt zeigt bewusst nur den lokalen nächsten Schritt an. Die robuste Extraktion kommt als Desktop/CLI-Modul.</div>
+          <div class="mini-note">PDF/DOC/DOCX: OCR/Text-Extraktion soll lokal im Browser auf Ihrer Hardware laufen, sobald eine geprüfte Engine eingebunden ist. Ohne Engine zeigt das Produkt den lokalen nächsten Schritt an und erfindet keine Daten.</div>
 
           <h3>Zielformat</h3>
           <label><span class="label-text">Format</span> <select id="format">
@@ -149,8 +151,9 @@
     <section id="validators" class="card validator-card">
       <div>
         <p class="eyebrow">Offizielle Validierung</p>
-        <h2>Woher bekommt man KoSIT?</h2>
-        <p>KoSIT besteht aus zwei Teilen: dem Validator-Programm und der XRechnung-Konfiguration. Beides liegt öffentlich auf GitHub. Für XRechnung muss beides zusammen lokal ausgeführt werden.</p>
+        <h2>Was ist KoSIT und warum nicht einfach Server?</h2>
+        <p>KoSIT ist der offizielle lokale Validator-Stack für XRechnung: ein Java-Validator plus XRechnung-Konfiguration mit XSD, Schematron, Codelisten und Szenarien. Er prüft, ob eine konkrete XML-Rechnung die XRechnung-Regeln erfüllt und erzeugt einen Report.</p>
+        <p>In diesem Produkt hostet GitHub nur die statischen Dateien. Der Browser kann XML erzeugen und Sanity-Checks ausführen; ein echter KoSIT-PASS wird erst behauptet, wenn der offizielle Validator auf dem Gerät des Benutzers für genau dieses XML gelaufen ist. Eine Browser-Portierung wäre möglich, aber sie muss Java/WebAssembly, ZIP-Artefakte, Schematron/XSLT und Report-Dateien sauber paketieren.</p>
       </div>
       <div class="validator-grid">
         <article>
@@ -184,7 +187,7 @@ curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/release
         <li>Keine Datenbank, keine Cookies, kein Tracking.</li>
         <li>Keine Netzwerk-API im Generator-Code.</li>
         <li>Lokale Dateiauswahl liest TXT/CSV/XML nur im Browser-Tab.</li>
-        <li>PDF/DOC/DOCX werden nicht hochgeladen; Desktop-Extraktion folgt als lokales Modul.</li>
+        <li>PDF/DOC/DOCX werden nicht hochgeladen; OCR/PDF-Extraktion läuft nur über eine lokale Browser-Engine oder ein lokales Desktop/CLI-Modul und bleibt prüfpflichtig.</li>
       </ul>
       <p>Für andere Agenten/LLMs steht <code>window.XInvoice.convertForAgent(invoice, formatId)</code> bereit. Die API gibt strukturierte Fehler zurück, statt bei unvollständigen Daten still Artefakte zu bauen.</p>
     </section>

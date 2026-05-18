@@ -30,16 +30,32 @@ function sampleInvoice(overrides = {}) {
   };
 }
 
+const pendingTests = [];
+
+function reportFailure(name, error) {
+  console.error(`not ok - ${name}`);
+  console.error(error.stack || error.message);
+  process.exitCode = 1;
+}
+
 function test(name, fn) {
   try {
-    fn();
+    const result = fn();
+    if (result && typeof result.then === 'function') {
+      pendingTests.push(result.then(() => {
+        console.log(`ok - ${name}`);
+      }).catch((error) => reportFailure(name, error)));
+      return;
+    }
     console.log(`ok - ${name}`);
   } catch (error) {
-    console.error(`not ok - ${name}`);
-    console.error(error.stack || error.message);
-    process.exitCode = 1;
+    reportFailure(name, error);
   }
 }
+
+setImmediate(async () => {
+  await Promise.all(pendingTests);
+});
 
 test('all browser formats are implemented and selectable', () => {
   const formatIds = Object.keys(app.FORMATS);
@@ -51,7 +67,9 @@ test('all browser formats are implemented and selectable', () => {
 
 test('product copy does not describe the app as a demo or fake legal certainty', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'pages.yml'), 'utf8');
   assert(!/\bDemo\b/i.test(html), 'page should not present product as Demo');
+  assert(!/\bdemo\b/i.test(workflow), 'deployment workflow should not present product as demo');
   assert(!/rechtssicher garantiert|100% DSGVO|GoBD-konform garantiert/i.test(html), 'unsafe legal overclaim');
 });
 
@@ -70,11 +88,13 @@ test('product page explains where KoSIT and official validation artifacts come f
   }
 });
 
-test('product page includes local document intake without remote upload claims', () => {
+test('product page includes local document intake and OCR architecture without remote upload claims', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
   assert(html.includes('id="sourceFile"'), 'missing local file input');
   assert(html.includes('accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml"'), 'missing accepted invoice formats');
   assert(html.includes('Datei bleibt in diesem Browser-Tab'), 'missing local-only upload wording');
+  assert(html.includes('OCR-Engine lokal einbindbar'), 'missing local OCR engine wording');
+  assert(html.includes('GitHub Pages liefert nur HTML, CSS und JavaScript aus'), 'missing GitHub static hosting wording');
 });
 
 test('local document intake parses csv txt and xml snippets without network', () => {
@@ -89,13 +109,72 @@ test('local document intake parses csv txt and xml snippets without network', ()
   assert(parsed.fields.invoiceNumber === 'RE-3', 'xml invoice number missing');
 });
 
-test('local document intake is honest about pdf/doc/docx requiring local desktop extraction', () => {
+test('local document intake is honest about pdf/doc/docx needing a browser-local extraction engine', () => {
   for (const name of ['invoice.pdf', 'invoice.doc', 'invoice.docx']) {
     const parsed = app.parseLocalDocument({ name, type: 'application/octet-stream', text: '' });
-    assert(parsed.ok === false, `${name} should not pretend browser extraction`);
-    assert(parsed.requiresDesktopExtraction === true, `${name} should require desktop extraction`);
-    assert(parsed.errors.some((error) => error.includes('Desktop')), `${name} should mention Desktop extraction`);
+    assert(parsed.ok === false, `${name} should not pretend extraction without an engine`);
+    assert(parsed.requiresLocalOcrEngine === true, `${name} should require a browser-local OCR/PDF engine`);
+    assert(parsed.requiresServer === false, `${name} should not require a server`);
+    assert(parsed.errors.some((error) => error.includes('lokale OCR/PDF-Engine')), `${name} should mention local OCR/PDF engine`);
   }
+});
+
+test('pdf intake can use an injected browser-local OCR/PDF engine and still requires review', () => {
+  const parsed = app.parseLocalDocument({ name: 'invoice.pdf', type: 'application/pdf', text: '' }, {
+    localExtractors: {
+      pdf() {
+        return {
+          ok: true,
+          method: 'browser-pdf-text',
+          confidence: 0.72,
+          text: 'Rechnungsnummer: RE-PDF-1\nLeitweg-ID: LW-PDF-1\nAuftragsnummer: PO-PDF-1\nIBAN: DE89370400440532013000\nZahlungsbedingungen: 14 Tage\nTelefon: +49 30 123456\nE-Mail: seller@example.invalid'
+        };
+      }
+    }
+  });
+  assert(parsed.ok === true, 'pdf should parse when local engine returns text');
+  assert(parsed.usedLocalExtractor === true, 'result should record local extractor use');
+  assert(parsed.requiresHumanReview === true, 'OCR/text extraction must require review');
+  assert(parsed.requiresServer === false, 'local extraction should not require a server');
+  assert(parsed.fields.invoiceNumber === 'RE-PDF-1', 'pdf invoice number missing');
+  assert(parsed.fields.buyerReference === 'LW-PDF-1', 'pdf buyer reference missing');
+  assert(parsed.fields.orderNumber === 'PO-PDF-1', 'pdf order number missing');
+  assert(parsed.fields.paymentIban === 'DE89370400440532013000', 'pdf IBAN missing');
+});
+
+test('pdf intake normalizes async local OCR/PDF extractor success and failure', async () => {
+  let parsed = await app.parseLocalDocument({ name: 'invoice.pdf', type: 'application/pdf', text: '' }, {
+    localExtractors: {
+      async pdf() {
+        return { ok: true, method: 'async-browser-pdf-text', text: 'Rechnungsnummer: RE-ASYNC-1\nLeitweg-ID: LW-ASYNC-1' };
+      }
+    }
+  });
+  assert(parsed.ok === true, 'async pdf extractor should parse');
+  assert(parsed.fields.invoiceNumber === 'RE-ASYNC-1', 'async invoice number missing');
+  assert(parsed.requiresHumanReview === true, 'async extraction must require review');
+
+  parsed = await app.parseLocalDocument({ name: 'invoice.pdf', type: 'application/pdf', text: '' }, {
+    localExtractors: {
+      async pdf() { throw new Error('ocr worker crashed'); }
+    }
+  });
+  assert(parsed.ok === false, 'async extractor rejection should become structured failure');
+  assert(parsed.requiresLocalOcrEngine === true, 'async failure should require local OCR engine');
+  assert(parsed.requiresServer === false, 'async failure should not suggest server');
+  assert(parsed.errors.some((error) => error.includes('ocr worker crashed')), 'async failure should include cause');
+});
+
+test('browser execution model explains GitHub Pages hosting, user hardware and KoSIT boundary', () => {
+  const model = app.getBrowserExecutionModel();
+  assert(model.githubPages === 'static-hosting-only', 'GitHub Pages should only host static files');
+  assert(model.runsOnUserHardware === true, 'browser work should run on user hardware');
+  assert(model.requiresApplicationServer === false, 'product should not need an application server');
+  assert(model.ocr.mode === 'browser-local-engine', 'OCR should be modeled as browser-local engine');
+  assert(model.kosit.officialValidator === 'KoSIT validator + validator-configuration-xrechnung', 'KoSIT stack should be explicit');
+  assert(model.kosit.browserOnlyStatus.includes('not shipped'), 'browser KoSIT boundary should be honest');
+  assert(model.kosit.explainsWhyNotPureBrowser.includes('Java'), 'KoSIT explanation should mention Java');
+  assert(model.kosit.explainsWhyNotPureBrowser.includes('Schematron'), 'KoSIT explanation should mention Schematron');
 });
 
 test('preflight rejects missing required fields before conversion for every format', () => {
@@ -253,7 +332,7 @@ test('markRequiredFields does not duplicate static required stars', () => {
 
 test('no persistence or network APIs are used by app helpers', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'web', 'app.js'), 'utf8');
-  for (const banned of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch(', 'XMLHttpRequest', 'new WebSocket']) {
+  for (const banned of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch(', 'XMLHttpRequest', 'new WebSocket', 'sendBeacon']) {
     assert(!source.includes(banned), `banned browser API found: ${banned}`);
   }
 });

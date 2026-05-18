@@ -52,7 +52,7 @@ Validierung lokal: wie ZUGFeRD.
 Im Code gibt es einen Formatkatalog und zwei Implementierungsstufen:
 
 - Lokale Python-CLI: aktuell `xrechnung-ubl` als Export mit Basisprüfung und optionalem KoSIT-Gate; das minimale JSON/CSV-Beispiel erzeugt einen echten lokalen KoSIT-Report. Für weitere Formate gibt die CLI Validierungspläne aus.
-- Browser-App: erzeugt `xrechnung-ubl`, `xrechnung-cii`, `ubl` sowie XML-Vorbereitungspakete für `zugferd-pdf` und `factur-x-pdf`. Die Browser-Pakete sind bewusst keine echten PDFs; PDF/A-3-Montage und amtliche Validierung bleiben lokale Native-Tool-Schritte.
+- Browser-App: erzeugt `xrechnung-ubl`, `xrechnung-cii`, `ubl` sowie XML-Vorbereitungspakete für `zugferd-pdf` und `factur-x-pdf`. GitHub Pages hostet nur statische Dateien; die Browser-Arbeit läuft auf der Hardware des Benutzers. PDF/DOC/DOCX können künftig über eine geprüfte lokale OCR/PDF-Engine im Browser vorbefüllt werden, bleiben aber Human-Review-pflichtig. Die Browser-Pakete sind bewusst keine echten PDFs; PDF/A-3-Montage und amtliche Validierung bleiben lokale Native-Tool-Schritte.
 
 Formate:
 
@@ -271,12 +271,15 @@ Hinzugefügt:
 - Formatkatalog in `src/xrechnung_converter/formats.py`
 - CLI-Option `--output-format`
 - CLI-Option `--print-validation-plan`
-- Tests für Formatkatalog und CLI-Hilfe
+- CLI-Optionen `--kosit-validator`, `--kosit-scenarios`, `--report-dir`
+- wiederholbarer KoSIT-Bootstrap in `scripts/bootstrap_validators.py`
+- Tests für Formatkatalog, CLI-Hilfe, KoSIT-Bootstrap, KoSIT-Report-Parsing und Browser-Workflows
 - Browser-App unter `web/` mit XRechnung UBL, XRechnung CII, generischem EN16931 UBL und XML-Vorbereitungspaketen für ZUGFeRD/Factur-X
 - Browser-Agent-API `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern und Browser-Sanity-Validierung
+- Browser-Local-Extractor-Hook `window.XInvoice.registerLocalExtractor(kind, fn)` für geprüfte lokale OCR/PDF-Engines ohne Server-Upload
 
 Noch nicht implementiert:
 - CII/PDF/A-3-Erzeugung in der Python-CLI/Core-Bibliothek
 - echte ZUGFeRD/Factur-X PDF/A-3-Erzeugung; Browser erzeugt nur ein XML-Vorbereitungspaket, kein PDF
 - veraPDF/Mustang-Bootstrap
-- KoSIT-Bootstrap und echte offizielle Validierung
+- KoSIT als reine Browser/WebAssembly-Laufzeit; aktuell ist KoSIT lokal als CLI/Desktop-Gate eingebunden

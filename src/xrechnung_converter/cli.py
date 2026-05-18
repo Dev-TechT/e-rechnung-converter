@@ -105,7 +105,7 @@ def convert(args: argparse.Namespace) -> int:
 
     if selected_format.id != "xrechnung-ubl":
         raise SystemExit(
-            f"Output format '{selected_format.id}' is planned but not implemented in this MVP. "
+            f"Output format '{selected_format.id}' is planned but not implemented in this CLI yet. "
             "Use --print-validation-plan to inspect its local validation workflow."
         )
 
@@ -126,7 +126,7 @@ def convert(args: argparse.Namespace) -> int:
     elif args.format == "csv" or src.suffix.lower() == ".csv":
         invoice = invoice_from_csv(src)
     else:
-        raise SystemExit("MVP supports structured JSON/CSV first. PDF/DOC/DOCX/TXT extraction is planned with human review.")
+        raise SystemExit("Structured JSON/CSV is supported first. PDF/DOC/DOCX/TXT extraction needs local OCR/PDF tooling and human review.")
 
     xml_text = invoice_to_ubl_xml(invoice)
     output = Path(args.output)
@@ -157,7 +157,7 @@ def convert(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Local-first invoice to XRechnung candidate XML converter MVP; "
+            "Local-first invoice to XRechnung candidate XML converter; "
             "production use requires official KoSIT validation."
         )
     )

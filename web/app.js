@@ -403,22 +403,112 @@
     return fields;
   }
 
-  function parseLocalDocument(file) {
+  const LOCAL_EXTRACTORS = {};
+
+  function registerLocalExtractor(kind, extractor) {
+    const normalized = String(kind || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (!normalized || typeof extractor !== 'function') {
+      return { ok: false, errors: ['Lokale Extraktoren brauchen einen Typ und eine Funktion.'] };
+    }
+    LOCAL_EXTRACTORS[normalized] = extractor;
+    return { ok: true, kind: normalized };
+  }
+
+  function getLocalExtractor(ext, options = {}) {
+    const injected = options.localExtractors || {};
+    const globals = typeof globalThis !== 'undefined' && globalThis.XInvoiceLocalExtractors ? globalThis.XInvoiceLocalExtractors : {};
+    return injected[ext] || injected.document || LOCAL_EXTRACTORS[ext] || LOCAL_EXTRACTORS.document || globals[ext] || globals.document;
+  }
+
+  function fieldsFromDocumentText(ext, text) {
+    if (ext === 'csv') return parseCsvFields(text);
+    if (ext === 'xml') return parseXmlFields(text);
+    return parseTextFields(text);
+  }
+
+  function localExtractionFailure(message) {
+    return {
+      ok: false,
+      requiresLocalOcrEngine: true,
+      requiresServer: false,
+      errors: [message || 'Lokale OCR/PDF-Engine konnte keine Rechnungsdaten erkennen.'],
+      warnings: [],
+      fields: {},
+    };
+  }
+
+  function resultFromLocalExtraction(ext, extraction) {
+    if (!extraction || extraction.ok === false) {
+      return localExtractionFailure(extraction?.error || extraction?.message);
+    }
+    const text = String(extraction.text || '');
+    const fields = { ...(text ? fieldsFromDocumentText('txt', text) : {}), ...(extraction.fields || {}) };
+    return {
+      ok: true,
+      errors: [],
+      warnings: ['Lokale OCR/PDF-Erkennung liefert nur Vorschläge. Bitte alle Felder vor der Konvertierung prüfen.'],
+      fields,
+      usedLocalExtractor: true,
+      extractionMethod: extraction.method || `${ext}-local-extractor`,
+      confidence: extraction.confidence,
+      requiresHumanReview: true,
+      requiresServer: false,
+    };
+  }
+
+  function parseLocalDocument(file, options = {}) {
     const ext = extensionFromName(file?.name);
     const text = String(file?.text || '');
     if (['pdf', 'doc', 'docx'].includes(ext)) {
-      return {
-        ok: false,
-        requiresDesktopExtraction: true,
-        errors: ['PDF/DOC/DOCX brauchen eine lokale Desktop-Extraktion mit Sichtprüfung. Die Browser-Seite lädt nichts hoch und behauptet keine fehlerfreie OCR.'],
-        fields: {},
-      };
+      const extractor = getLocalExtractor(ext, options);
+      if (!extractor) {
+        return {
+          ok: false,
+          requiresLocalOcrEngine: true,
+          requiresDesktopExtraction: true,
+          requiresServer: false,
+          errors: ['PDF/DOC/DOCX brauchen eine lokale OCR/PDF-Engine im Browser oder ein lokales Desktop/CLI-Modul mit Sichtprüfung. Die Browser-Seite lädt nichts hoch und erfindet keine Rechnungsdaten.'],
+          warnings: [],
+          fields: {},
+        };
+      }
+      try {
+        const extraction = extractor(file);
+        if (extraction && typeof extraction.then === 'function') {
+          return extraction
+            .then((resolved) => resultFromLocalExtraction(ext, resolved))
+            .catch((error) => localExtractionFailure(`Lokale OCR/PDF-Engine ist fehlgeschlagen: ${error.message || error}`));
+        }
+        return resultFromLocalExtraction(ext, extraction);
+      } catch (error) {
+        return localExtractionFailure(`Lokale OCR/PDF-Engine ist fehlgeschlagen: ${error.message || error}`);
+      }
     }
     if (!['txt', 'csv', 'xml'].includes(ext)) {
-      return { ok: false, errors: ['Unbekannter Dateityp. Unterstützt im Browser: TXT, CSV, XML. PDF/DOC/DOCX folgen über lokale Desktop-Extraktion.'], fields: {} };
+      return { ok: false, requiresServer: false, errors: ['Unbekannter Dateityp. Unterstützt im Browser: TXT, CSV, XML. PDF/DOC/DOCX brauchen eine lokale OCR/PDF-Engine oder Desktop/CLI-Extraktion.'], fields: {} };
     }
-    const fields = ext === 'csv' ? parseCsvFields(text) : ext === 'xml' ? parseXmlFields(text) : parseTextFields(text);
-    return { ok: true, errors: [], warnings: ['Automatisch erkannte Felder müssen vor der Konvertierung geprüft werden.'], fields };
+    const fields = fieldsFromDocumentText(ext, text);
+    return { ok: true, requiresServer: false, requiresHumanReview: true, errors: [], warnings: ['Automatisch erkannte Felder müssen vor der Konvertierung geprüft werden.'], fields };
+  }
+
+  function getBrowserExecutionModel() {
+    return {
+      githubPages: 'static-hosting-only',
+      runsOnUserHardware: true,
+      requiresApplicationServer: false,
+      dataLeavesDeviceByDefault: false,
+      generation: { mode: 'browser-only', output: ['UBL XML', 'CII XML', 'ZUGFeRD/Factur-X preparation package'] },
+      ocr: {
+        mode: 'browser-local-engine',
+        activeWhen: 'A reviewed local PDF/OCR extractor is registered via registerLocalExtractor or XInvoiceLocalExtractors.',
+        requiresHumanReview: true,
+      },
+      kosit: {
+        officialValidator: 'KoSIT validator + validator-configuration-xrechnung',
+        browserOnlyStatus: 'not shipped as a pure browser runtime in this product yet',
+        explainsWhyNotPureBrowser: 'KoSIT is a Java validator stack with XRechnung ZIP artifacts, XSD, Schematron, code lists and report files. It can run on the user device today via local CLI/Desktop; a pure browser/WebAssembly port is possible but must be packaged and tested separately before any KoSIT-PASS claim.',
+      },
+    };
   }
 
   function applyParsedFields(document, fields) {
@@ -593,17 +683,27 @@
         const selected = sourceFile.files && sourceFile.files[0];
         if (!selected) return;
         const ext = extensionFromName(selected.name);
-        if (['pdf', 'doc', 'docx'].includes(ext)) {
-          showResult(document, parseLocalDocument({ name: selected.name, text: '' }));
-          return;
-        }
-        const reader = new FileReader();
-        reader.addEventListener('load', () => {
-          const parsed = parseLocalDocument({ name: selected.name, type: selected.type, text: String(reader.result || '') });
+        const handleParsed = (parsed) => {
           if (parsed.ok) applyParsedFields(document, parsed.fields);
           showResult(document, parsed.ok
             ? { ok: true, warnings: parsed.warnings, message: `Lokale Datei gelesen: ${selected.name}. Bitte erkannte Felder prüfen.` }
             : parsed);
+        };
+        const handleMaybeAsync = (parsed) => {
+          if (parsed && typeof parsed.then === 'function') {
+            parsed.then(handleParsed).catch((error) => showResult(document, { ok: false, errors: [`Lokale Dokumentextraktion fehlgeschlagen: ${error.message || error}`] }));
+            return;
+          }
+          handleParsed(parsed);
+        };
+        if (['pdf', 'doc', 'docx'].includes(ext)) {
+          handleMaybeAsync(parseLocalDocument({ name: selected.name, type: selected.type, file: selected }));
+          return;
+        }
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+          const parsed = parseLocalDocument({ name: selected.name, type: selected.type, text: String(reader.result || ''), file: selected });
+          handleMaybeAsync(parsed);
         });
         reader.addEventListener('error', () => showResult(document, { ok: false, errors: [`Datei konnte nicht lokal gelesen werden: ${selected.name}`] }));
         reader.readAsText(selected);
@@ -632,5 +732,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

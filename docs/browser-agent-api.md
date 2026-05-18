@@ -10,7 +10,7 @@ The static GitHub Pages app exposes a browser-only API for humans and other agen
 - `zugferd-pdf` -> browser XML package containing CII XML and local PDF/A-3 assembly instructions
 - `factur-x-pdf` -> browser XML package containing CII XML and local PDF/A-3 assembly instructions
 
-Important: GitHub Pages cannot run native KoSIT/Mustang/veraPDF. The browser performs mandatory-field and structure sanity validation while generating. Final official validation still requires local validator tools.
+Important: GitHub Pages is static hosting only. HTML, CSS and JavaScript are delivered to the user; generation, field checks and optional local OCR/PDF extraction run on the user's hardware. The app does not need an application server for the default workflow. GitHub Pages cannot run native KoSIT/Mustang/veraPDF for us, and the browser must not claim official validation unless that exact artifact has a real local validator report.
 
 ## Required fields
 
@@ -31,6 +31,26 @@ The app marks required fields with `*` and blocks conversion if any are missing:
 - line description
 - line quantity
 - line net price
+
+## Local OCR/PDF extractor hook
+
+The browser exposes a local extraction hook for future reviewed PDF/DOC/DOCX engines:
+
+```js
+window.XInvoice.registerLocalExtractor('pdf', async ({ file }) => {
+  // Run a browser-local PDF text/OCR engine here, for example in a Web Worker.
+  // Do not send the file to a server.
+  return {
+    ok: true,
+    method: 'browser-pdf-text-or-ocr',
+    confidence: 0.74,
+    text: 'Rechnungsnummer: RE-1\nLeitweg-ID: ...',
+    fields: {}
+  };
+});
+```
+
+If no extractor is registered, PDF/DOC/DOCX return a structured failure that asks for a local OCR/PDF engine or Desktop/CLI extraction. Any extracted fields are marked as suggestions and require human review before conversion.
 
 ## Agent usage
 
@@ -80,6 +100,7 @@ Do not add these to the browser generator:
 - `localStorage`
 - `sessionStorage`
 - `indexedDB`
-- file upload controls for real invoice PDFs unless the parser is purely local and reviewed
+- file upload controls that send real invoice PDFs to a remote service
+- PDF/DOC/DOCX extraction that is not purely local, reviewed, and human-review gated
 
 Tests enforce the current no-upload/no-persistence boundary.

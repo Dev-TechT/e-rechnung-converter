@@ -3,9 +3,9 @@
   "product_name": "E-Rechnung Studio",
   "date": "2026-05-18",
   "workspace": "/home/neon/xrechnung-converter",
-  "status": "product-build-with-local-kosit-bootstrap-and-browser-app",
+  "status": "product-build-with-local-kosit-bootstrap-browser-app-and-browser-ocr-hook",
   "decision": "build-greenfield-with-official-local-components",
-  "local_first_answer": "Generation and browser sanity checks can run in the user's browser without a local server. Official KoSIT/Mustang/veraPDF validation is currently best handled as a local CLI/Desktop step, not as a remote server upload.",
+  "local_first_answer": "Generation, browser sanity checks and optional OCR/PDF extraction can run in the user's browser on the user's hardware. GitHub Pages is static hosting only and no application server is required for the default workflow. Official KoSIT/Mustang/veraPDF validation is currently best handled as a local CLI/Desktop step, not as a remote server upload.",
   "official_components_checked": {
     "kosit_validator": {
       "repo": "https://github.com/itplr-kosit/validator",
@@ -43,6 +43,10 @@
         "https://www.invoice-converter.com/en/convert"
       ],
       "observed_positioning": "Competitor positions around upload -> extraction/review -> standards-aligned download for XRechnung, ZUGFeRD, Factur-X, UBL and CII. Our differentiation remains local-first/no-server-upload."
+    },
+    "pdf24": {
+      "url_review_attempted": "https://tools.pdf24.org/de/elektronische-rechnung-erstellen",
+      "observed_from_search": "PDF24 offers online and offline e-invoice creation flows. Useful UX reference: start from a document/form, fill required invoice data, export e-invoice, but keep our product local-first and honest about validation."
     }
   },
   "supported_output_format_catalog": [
@@ -65,20 +69,20 @@
     "examples",
     "research/GDPR/format workflow/plan docs",
     "static browser product UI under web/ with no database, no server uploads and no persistence APIs",
-    "local browser document intake for TXT/CSV/XML and honest Desktop-extraction gate for PDF/DOC/DOCX",
+    "local browser document intake for TXT/CSV/XML",
+    "browser-local extractor hook for PDF/DOC/DOCX via window.XInvoice.registerLocalExtractor(kind, fn), requiring human review and no server",
     "browser generation for xrechnung-ubl, xrechnung-cii, generic ubl and XML preparation packages for zugferd/factur-x",
     "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports",
+    "machine-readable window.XInvoice.getBrowserExecutionModel API explaining GitHub Pages, user hardware, OCR and KoSIT boundaries",
     "KoSIT setup documentation and product-page download links"
   ],
   "verified_commands": [
     "python3 scripts/bootstrap_validators.py --include-visualization -> ok true, manifest at tools/kosit/manifest.json",
     "xrechnung-converter examples/minimal-invoice.json -o out/kosit-minimal.xml --kosit-validator tools/kosit/validator-1.6.2-standalone.jar --kosit-scenarios tools/kosit/xrechnung-config/scenarios.xml --report-dir reports/kosit-minimal-5 -> ok true, engine kosit, report_path reports/kosit-minimal-5/kosit-minimal-report.xml",
-    ". .venv/bin/activate && python3 -m pytest tests/test_kosit_bootstrap.py -q -> 4 passed",
-    ". .venv/bin/activate && python3 -m pytest tests/test_kosit_cli_integration.py -q -> 5 passed",
-    ". .venv/bin/activate && python3 -m pytest tests/test_kosit_ubl_requirements.py -q -> 1 passed",
-    "node tests/webapp.test.js -> 21 ok checks"
+    ". .venv/bin/activate && python3 -m pytest -q -> 21 passed",
+    "node tests/webapp.test.js -> 24 ok checks"
   ],
-  "next_task": "Make CII/Core robust, then plan/integrate Mustangproject and veraPDF for ZUGFeRD/Factur-X; add local PDF/DOC/DOCX extraction as Desktop/CLI step with human review.",
+  "next_task": "Choose and integrate a real browser-local PDF/OCR engine behind the extractor hook, then continue CII/Core hardening and plan/integrate Mustangproject and veraPDF for ZUGFeRD/Factur-X.",
   "required_field_policy": [
     "Leitweg-ID / BuyerReference",
     "Bank details / IBAN",
@@ -91,7 +95,7 @@
   ],
   "current_limits": [
     "CLI xrechnung-ubl now has a minimal JSON example that passes local KoSIT validation, but broader field coverage still needs iterative hardening.",
-    "Browser app runs sanity validation during generation, but cannot run official KoSIT/Mustang/veraPDF validation inside GitHub Pages without substantial WebAssembly/packaging work; production flow uses local CLI/native validator artifacts.",
-    "Browser app parses TXT/CSV/XML locally; PDF/DOC/DOCX need the planned local Desktop/CLI extraction with human review."
+    "Browser app runs generation and sanity validation on the user's hardware, but does not yet ship KoSIT as a pure Browser/WebAssembly runtime; official validation uses local CLI/native validator artifacts.",
+    "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction, but a real OCR/PDF engine still needs to be selected, bundled and tested before automatic PDF prefill is active."
   ]
 }

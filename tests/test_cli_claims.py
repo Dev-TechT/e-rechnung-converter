@@ -9,4 +9,5 @@ def test_cli_help_calls_output_a_candidate_until_official_validation_passes():
 
     assert "XRechnung candidate" in help_text
     assert "official KoSIT validation" in help_text
+    assert "MVP" not in help_text
     assert "Output XRechnung UBL XML path" not in help_text

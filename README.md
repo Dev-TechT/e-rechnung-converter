@@ -18,7 +18,7 @@ python3 -m http.server 8124 --bind 127.0.0.1
 # öffnen: http://127.0.0.1:8124/web/
 ```
 
-Die Browser-App nutzt keine Datenbank, keine Cookies und keine Server-Uploads. TXT/CSV/XML können lokal im Browser-Tab eingelesen werden. PDF/DOC/DOCX werden aktuell nicht im Browser extrahiert; dafür ist ein lokales Desktop/CLI-Modul mit Sichtprüfung geplant.
+Die Browser-App nutzt keine Datenbank, keine Cookies und keine Server-Uploads. GitHub Pages hostet nur statische Dateien; Generierung, Browser-Sanity-Checks und lokale Dateiauswertung laufen auf der Hardware des Benutzers. TXT/CSV/XML können lokal im Browser-Tab eingelesen werden. PDF/DOC/DOCX sind semantische Extraktion: eine geprüfte OCR/PDF-Engine kann lokal im Browser eingebunden werden, sonst bleibt der sichere Fallback ein lokales Desktop/CLI-Modul mit Sichtprüfung.
 
 Pflichtfelder sind mit `*` markiert; fehlt eines davon, wird nicht konvertiert. Dazu zählen Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Rechnungssteller-Telefon für XRechnung-Kontaktangaben, Seller Identifier, Auftragsnummer/Bestellreferenz und Positionsdaten. Für andere Agenten/LLMs gibt es `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern oder Artefakten plus Browser-Validierungsbericht.
 
@@ -91,6 +91,8 @@ node tests/webapp.test.js
 
 ## Browser statt Server?
 
-Generierung und einfache Browser-Sanity-Checks können im Browser des Benutzers laufen und tun das bereits. Ein lokaler Server ist dafür nicht zwingend nötig; eine statische Seite oder Desktop-Shell reicht.
+Generierung und einfache Browser-Sanity-Checks können im Browser des Benutzers laufen und tun das bereits. GitHub Pages ist dafür nur statisches Hosting: HTML, CSS und JavaScript werden ausgeliefert, aber kein Dev-TechT-Server verarbeitet Rechnungen. Ein lokaler Server ist dafür nicht zwingend nötig; eine statische Seite, PWA oder Desktop-Shell reicht.
 
-Die offizielle KoSIT-Validierung ist heute aber ein Java-Validator plus XRechnung-Konfigurationsartefakte. Praktisch und wartbar läuft sie lokal als CLI/Desktop-Schritt, nicht auf einem fremden Webserver. Eine spätere WebAssembly-/Browser-Portierung wäre möglich, aber deutlich aufwendiger: Java-Runtime/Dateisystem, ZIP-Artefakte, XSLT/Schematron und Report-Dateien müssten sauber im Browser verpackt werden. Deshalb ist der robuste nächste Produktschritt: Browser für Eingabe/Generierung, lokale CLI/Desktop-Komponente für KoSIT/Mustang/veraPDF und PDF/DOC/DOCX-Extraktion mit Human Review.
+OCR/PDF-Erkennung kann ebenfalls auf der Hardware des Benutzers laufen. Dafür braucht die Browser-App eine geprüfte lokale Engine, z.B. PDF-Text-Extraktion und OCR über WebAssembly/Web Worker. Bis diese Engine eingebunden und getestet ist, darf die App aus PDF/DOC/DOCX keine Werte raten; sie zeigt den lokalen nächsten Schritt an und verlangt Human Review.
+
+Die offizielle KoSIT-Validierung ist heute aber ein Java-Validator plus XRechnung-Konfigurationsartefakte. Praktisch und wartbar läuft sie lokal als CLI/Desktop-Schritt, nicht auf einem fremden Webserver. Eine spätere WebAssembly-/Browser-Portierung wäre möglich, aber deutlich aufwendiger: Java-Runtime/Dateisystem, ZIP-Artefakte, XSLT/Schematron und Report-Dateien müssten sauber im Browser verpackt werden. Deshalb ist der robuste nächste Produktschritt: Browser für Eingabe/Generierung/OCR-Adapter, lokale CLI/Desktop-Komponente für KoSIT/Mustang/veraPDF und Human Review.
