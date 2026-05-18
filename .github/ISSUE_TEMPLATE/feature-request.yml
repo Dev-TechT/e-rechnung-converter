@@ -19,6 +19,8 @@ body:
         - KoSIT / validator reports
         - ZUGFeRD / Factur-X PDF/A-3
         - Documentation / contributor workflow
+        - Public-sector delivery readiness / transmission metadata
+        - XRechnung / KoSIT release cadence
     validations:
       required: true
   - type: textarea
@@ -43,6 +45,7 @@ body:
         - Test covers ...
         - Docs explain ...
         - No invoice-data network/storage APIs are introduced.
+        - No live email/Peppol/OZG-RE submission is introduced unless explicitly scoped with credential handling and tests.
     validations:
       required: true
   - type: checkboxes
@@ -51,6 +54,8 @@ body:
       label: Boundaries
       options:
         - label: This does not require uploading invoice contents to a third-party server.
+          required: true
+        - label: This does not require live invoice transmission, or it explicitly scopes credentials, test environment, and safety gates.
           required: true
         - label: This does not require legal/compliance guarantee wording.
           required: true

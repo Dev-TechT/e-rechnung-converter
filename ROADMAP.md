@@ -8,6 +8,20 @@ This project is MIT-licensed and intentionally agent-friendly: humans and other 
 - Honest e-invoice wording: generated files are candidates until official local validation passes.
 - Human review stays in the loop for extracted PDF/DOC/DOCX/TXT values.
 - Official validators are adopted, not reimplemented from scratch.
+- Public-sector transmission is modeled before it is automated: portal, method, recipient email/Peppol address, and delivery evidence belong in the workflow, but real sending is a later explicit integration.
+- Source-grounded planning note: `docs/e-rechnung-bund-software-companies.md` maps the official federal guidance for software companies/developers to repo tasks.
+
+## Official federal guidance distilled
+
+From the federal e-invoicing page for software companies/developers:
+
+- XRechnung is Germany's EN 16931 CIUS; the exchange artifact is structured machine-readable XML, not a plain PDF.
+- Mandatory XRechnung syntaxes are UBL 2.1 and UN/CEFACT CII. Outgoing software can choose one syntax; incoming software must be able to process both.
+- KoSIT resources matter: specification/business rules, validator configuration, test suite/sample invoices/test messages, and visualization resources.
+- `BT-10` buyer reference maps to the federal `Leitweg-ID` context and must stay first-class for public-sector invoices.
+- Real workflows also need recipient portal, transmission method, and recipient email/Peppol address metadata.
+- OZG-RE supports web submission, manual upload, email and Peppol; email/Peppol fit higher volumes better than manual portal flows.
+- XRechnung releases happen twice yearly: 31 January and 31 July, becoming valid six months later on 1 August and 1 February.
 
 ## Current baseline
 
@@ -102,26 +116,59 @@ Goal: make outside contributions easy but safe.
 
 Needed:
 
-- Issue templates for validator failures, format requests, and extraction adapters.
+- Issue templates for validator failures, format requests, transmission-readiness requests, and extraction adapters.
 - Contribution guide with local setup, test commands, privacy rules, and claim wording.
 - More machine-readable task contracts for agent workers.
-- Small labeled issues: `good first issue`, `agent-friendly`, `needs-kosit-fixture`, `docs`.
+- Small labeled issues: `good first issue`, `agent-friendly`, `needs-kosit-fixture`, `needs-validator-evidence`, `docs`.
 
 Good agent task:
 
 - Turn one roadmap item into a focused issue with acceptance criteria and exact verification commands.
 
+### 6. Public-sector delivery readiness
+
+Goal: support the metadata needed before a user can choose a real submission path, without silently sending invoices.
+
+Needed:
+
+- Canonical delivery profile with recipient portal, transmission method (`web`, `manual-upload`, `email`, `peppol`), recipient email/Peppol address, and delivery evidence fields.
+- Browser UI and agent API fields for transmission readiness, separate from invoice XML generation.
+- Validation/report wording that says whether the invoice artifact is valid and whether delivery metadata is complete.
+- OZG-RE test-environment runbook for safe manual testing with synthetic/anonymized artifacts.
+- Explicit non-goal: no live email/Peppol/OZG-RE submission without a separate integration, credentials handling, and tests.
+
+Good agent task:
+
+- Add a non-sending delivery-profile schema plus tests that missing method/address blocks “ready to submit” status but does not block candidate XML generation.
+
+### 7. Release cadence and artifact freshness
+
+Goal: prevent stale XRechnung/KoSIT assumptions.
+
+Needed:
+
+- Record the pinned KoSIT validator and validator-configuration release in machine-readable status.
+- Add a checklist or script that reminds maintainers around the 31 January / 31 July release dates and the 1 August / 1 February validity dates.
+- Keep old/new validator reports side by side when upgrading.
+
+Good agent task:
+
+- Add a read-only release-cadence check that reports the current pinned release, latest known release, next expected release window, and docs that must be updated.
+
 ## Questions worth asking maintainers/users
 
 Use these before building a larger slice:
 
-1. Which output matters first for your real workflow: XRechnung UBL, XRechnung CII, ZUGFeRD, Factur-X, or generic UBL?
-2. Do you need browser-only use, a desktop app, or a local CLI/server on your own machine?
+1. Are you building outgoing invoices only, or do you also need incoming invoice processing?
+2. Which output matters first for your real workflow: XRechnung UBL, XRechnung CII, ZUGFeRD, Factur-X, or generic UBL?
 3. Which source files are most common: structured JSON/CSV, existing XML, PDF text, scanned PDF, DOCX, or a manual form?
-4. Can you provide anonymized invoices plus the real recipient rejection/validation messages?
-5. Which validator report is required by your customer/authority: KoSIT, Mustangproject, veraPDF, Peppol, or something else?
-6. Is the priority strict correctness, speed of manual entry, batch conversion, or integration into an existing invoicing workflow?
-7. What data must never leave the device/network?
+4. Which portal/submission path receives the invoice: OZG-RE, another public portal, manual upload, email, or Peppol?
+5. For email/Peppol, which recipient address/Peppol ID and delivery evidence must be stored?
+6. Can you provide anonymized invoices plus the real recipient rejection/validation messages?
+7. Which validator report is required by your customer/authority: KoSIT, Mustangproject, veraPDF, Peppol, or something else?
+8. Which XRechnung/validator-configuration release does the recipient currently enforce?
+9. Is the priority strict correctness, speed of manual entry, batch conversion, or integration into an existing invoicing workflow?
+10. What data must never leave the device/network?
 
 ## Definition of done for any contribution
 

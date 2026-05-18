@@ -8,9 +8,9 @@ Status: Produktaufbau, noch nicht rechts-/produktionsfertig ohne offizielle loka
 
 ## Lizenz und Mitarbeit
 
-Dieses Projekt steht unter der MIT-Lizenz, siehe `LICENSE`.
+Dieses Projekt steht unter der MIT-Lizenz, siehe `LICENSE`. Die Paket-Metadaten (`pyproject.toml`) deklarieren ebenfalls `MIT`.
 
-Roadmap und offene Arbeitsbereiche stehen in `ROADMAP.md`. Beitragsregeln für Menschen und andere Coding-Agenten stehen in `CONTRIBUTING.md`. Gute nächste Themen sind: KoSIT-harte XRechnung-UBL-Feldabdeckung, Browser-Validator-Parität, lokale Dokumenten-Extraktion mit Human Review und echte ZUGFeRD/Factur-X PDF/A-3-Validierung.
+Roadmap und offene Arbeitsbereiche stehen in `ROADMAP.md`. Beitragsregeln für Menschen und andere Coding-Agenten stehen in `CONTRIBUTING.md`. Die source-grounded Notizen aus der offiziellen Bundes-Seite für Softwareunternehmen stehen in `docs/e-rechnung-bund-software-companies.md`. Gute nächste Themen sind: KoSIT-harte XRechnung-UBL-Feldabdeckung, Browser-Validator-Parität, lokale Dokumenten-Extraktion mit Human Review, öffentliche-Sektor-Übermittlungsprofile und echte ZUGFeRD/Factur-X PDF/A-3-Validierung.
 
 ## Warum greenfield
 

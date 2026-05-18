@@ -81,7 +81,10 @@
     "built-in browser-local PDF extractor checks embedded invoice XML first, then simple embedded text, returning review-required suggestions and structured low-confidence failures for scan/empty/unsupported PDFs",
     "machine-readable window.XInvoice.validateXRechnungInBrowser API for local browser sanity reports without official KoSIT claims",
     "machine-readable window.XInvoice.getBrowserValidationStrategy API documenting why browser-native XSD/Schematron parity is the practical path before any KoSIT-in-browser claim",
-    "PDF.js remains a later browser-local PDF engine candidate, not bundled in the shipped runtime; current extractor is deliberately minimal and privacy-scanned"
+    "PDF.js remains a later browser-local PDF engine candidate, not bundled in the shipped runtime; current extractor is deliberately minimal and privacy-scanned",
+    "MIT license declared in LICENSE and pyproject.toml",
+    "source-grounded federal software-company guidance notes mapped to repo roadmap and issue templates",
+    "GitHub issue template for non-sending public-sector transmission readiness requests"
   ],
   "verified_commands": [
     "node tests/webapp.test.js -> 52 ok checks",
@@ -89,7 +92,7 @@
     "runtime privacy scan over web HTML/JS -> ok",
     "redacted private-sample PDF smoke -> fail-closed after strict parser hardening, no server, no field values printed"
   ],
-  "next_task": "Continue browser validation toward real parity: add a browser-loadable XSD/Schematron artifact slice and compare browser reports against KoSIT CLI on anonymized fixtures. Do not port Java KoSIT first unless a JVM/WASM feasibility spike proves acceptable size/performance.",
+  "next_task": "Highest source-grounded next code slice: add a non-sending public-sector delivery profile with portal/method/address/readiness checks, or continue KoSIT-backed XRechnung UBL hardening with anonymized fixtures.",
   "required_field_policy": [
     "Leitweg-ID / BuyerReference",
     "Bank details / IBAN",
@@ -105,6 +108,22 @@
     "Browser app runs generation, PDF embedded invoice XML/text extraction and sanity validation on the user hardware, but does not yet ship official KoSIT as a pure Browser/WebAssembly runtime; official validation still uses local CLI/native validator artifacts.",
     "Browser PDF extraction is suggestions-only and intentionally fail-closed: it reads simple uncompressed embedded Factur-X/ZUGFeRD/XRechnung XML only when attachment structure is safely recognized, plus simple embedded PDF text. It does not handle scan/image OCR, compressed/object-stream attachment structures, or ambiguous indirect stream boundaries; DOC/DOCX still need a separate local engine or Desktop/CLI path and every extracted field stays human-review-gated.",
     "Browser validation currently provides structured local sanity reports, not official KoSIT PASS. The next browser-validator step is XSD/WASM + Schematron/XSLT + Codelists with KoSIT CLI parity corpus.",
-    "The browser field catalog is background metadata for existing form fields, not a visible user-facing list; broader advanced fields still need proper grouped form controls plus generator/export round-trip tests before being presented as supported."
-  ]
+    "The browser field catalog is background metadata for existing form fields, not a visible user-facing list; broader advanced fields still need proper grouped form controls plus generator/export round-trip tests before being presented as supported.",
+    "The project models public-sector transmission readiness but does not send invoices via email, Peppol, SOAP/REST or OZG-RE; live transmission remains a separate integration with credentials, test-environment and safety gates.",
+    "Release cadence tracking is documented but not automated yet; KoSIT/XRechnung updates still require maintainer review around the January/July release windows and February/August validity dates."
+  ],
+  "questions_to_ask": [
+    "Are you building outgoing invoices only, or do you also need incoming invoice processing?",
+    "Which portal/submission path receives the invoice: OZG-RE, another public portal, manual upload, email, or Peppol?",
+    "For email/Peppol, which recipient address/Peppol ID and delivery evidence must be stored?",
+    "Which XRechnung/validator-configuration release does the recipient currently enforce?"
+  ],
+  "source_notes": {
+    "e_rechnung_bund_software_companies": {
+      "url": "https://e-rechnung-bund.de/en/e-invoicing-for-software-companies/",
+      "checked": "2026-05-18",
+      "local_note": "docs/e-rechnung-bund-software-companies.md",
+      "repo_implication": "Harden XRechnung UBL first, plan CII/incoming support, model non-sending transmission readiness, and track KoSIT release cadence."
+    }
+  }
 }

@@ -26,7 +26,7 @@ body:
     attributes:
       label: Non-goals
       value: |
-        - No server upload for invoice contents.
+        - No server upload or live transmission for invoice contents.
         - No legal/compliance guarantee wording.
         - No unrelated refactor.
     validations:
@@ -39,6 +39,7 @@ body:
         - Add/update test ...
         - Update docs if support status changes.
         - Generated artifacts remain candidates unless official validation passed.
+        - Delivery/transmission work is non-sending unless explicitly scoped and tested.
     validations:
       required: true
   - type: textarea

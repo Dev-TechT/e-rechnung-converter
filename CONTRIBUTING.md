@@ -46,6 +46,8 @@ Best first contributions are small and evidence-backed:
 - Improve one browser validation rule and compare it to KoSIT behavior.
 - Improve documentation around a supported vs planned format boundary.
 - Add one local-only extraction adapter that clearly marks suggested fields as review-required.
+- Add one non-sending delivery-readiness check for portal/method/address metadata.
+- Add one release-cadence or validator-artifact freshness check.
 - Improve agent/browser API docs without changing runtime behavior.
 
 Avoid broad rewrites, generic refactors, or adding new dependencies unless the roadmap item really needs them.
@@ -89,6 +91,6 @@ Verification:
 
 - [ ] I used only anonymized/synthetic invoice examples.
 - [ ] I ran the relevant tests and pasted the command results.
-- [ ] I did not add invoice-content network calls, analytics, telemetry, or hidden storage.
+- [ ] I did not add invoice-content network calls, analytics, telemetry, hidden storage, or live transmission.
 - [ ] I did not overclaim compliance, legal certainty, or validator status.
-- [ ] I updated docs if a format, validator, or support boundary changed.
+- [ ] I updated docs if a format, validator, release cadence, delivery method, or support boundary changed.

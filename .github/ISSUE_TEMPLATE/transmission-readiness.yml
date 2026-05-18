@@ -1,0 +1,68 @@
+name: Transmission readiness
+about: Plan non-sending public-sector delivery metadata for OZG-RE, email, Peppol, or another portal.
+title: "transmission-readiness: "
+labels: [enhancement, docs]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for delivery-readiness metadata and test-environment planning only.
+        Do not paste real invoice contents, real recipient secrets, credentials, or private delivery reports.
+        Live email, Peppol, SOAP/REST, or portal submission is out of scope unless a separate integration explicitly handles credentials, test environments, and safety gates.
+  - type: dropdown
+    id: method
+    attributes:
+      label: Submission path
+      options:
+        - OZG-RE web submission
+        - OZG-RE manual upload
+        - Email
+        - Peppol
+        - Other public portal
+        - Unknown / needs discovery
+    validations:
+      required: true
+  - type: textarea
+    id: recipient_metadata
+    attributes:
+      label: Recipient metadata needed
+      description: "Use placeholders only. Examples: portal name, recipient email placeholder, Peppol ID placeholder, customer/order reference fields."
+      placeholder: |
+        - Portal: OZG-RE test environment
+        - Recipient address/Peppol ID: EXAMPLE-ONLY
+        - Reference fields: BT-10/Leitweg-ID, purchase order reference
+    validations:
+      required: true
+  - type: textarea
+    id: readiness_definition
+    attributes:
+      label: What should “ready to submit” mean?
+      placeholder: |
+        - Candidate XML generated
+        - KoSIT report present for the concrete artifact
+        - Transmission method selected
+        - Recipient address/Peppol ID present if required
+        - No live send triggered by this task
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - Adds/updates non-sending delivery metadata only.
+        - Tests prove missing method/address blocks ready-to-submit status.
+        - Docs state that no live transmission is performed.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety boundaries
+      options:
+        - label: I used only synthetic/anonymized recipient and invoice metadata.
+          required: true
+        - label: This request does not include credentials, access tokens, certificates, or private portal data.
+          required: true
+        - label: This request does not ask the project to send a live invoice.
+          required: true
