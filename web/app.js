@@ -120,6 +120,75 @@
     }));
   }
 
+  const FORM_FIELD_BINDINGS = [
+    { id: 'invoiceNumber', bt: 'BT-1', bg: 'INVOICE', role: 'invoice.invoiceNumber' },
+    { id: 'issueDate', bt: 'BT-2', bg: 'INVOICE', role: 'invoice.issueDate' },
+    { id: 'dueDate', bt: 'BT-9', bg: 'INVOICE', role: 'invoice.dueDate' },
+    { id: 'currency', bt: 'BT-5', bg: 'INVOICE', role: 'invoice.currency' },
+    { id: 'buyerReference', bt: 'BT-10', bg: 'INVOICE', role: 'invoice.buyerReference' },
+    { id: 'orderNumber', bt: 'BT-13', bg: 'INVOICE', role: 'invoice.orderNumber' },
+    { id: 'paymentTerms', bt: 'BT-20', bg: 'INVOICE', role: 'invoice.paymentTerms' },
+    { id: 'paymentIban', bt: 'BT-84', bg: 'BG-17', role: 'payment.iban' },
+    { id: 'sellerName', bt: 'BT-27', bg: 'BG-4', role: 'seller.name' },
+    { id: 'sellerStreet', bt: 'BT-35', bg: 'BG-5', role: 'seller.street' },
+    { id: 'sellerPostalCode', bt: 'BT-38', bg: 'BG-5', role: 'seller.postalCode' },
+    { id: 'sellerCity', bt: 'BT-37', bg: 'BG-5', role: 'seller.city' },
+    { id: 'sellerCountry', bt: 'BT-40', bg: 'BG-5', role: 'seller.country' },
+    { id: 'sellerVatId', bt: 'BT-31', bg: 'BG-4', role: 'seller.vatId' },
+    { id: 'sellerIdentifier', bt: 'BT-29', bg: 'BG-4', role: 'seller.identifier' },
+    { id: 'sellerEndpointId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointId' },
+    { id: 'sellerTelephone', bt: 'BT-42', bg: 'BG-6', role: 'seller.telephone' },
+    { id: 'sellerEndpointSchemeId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointSchemeId' },
+    { id: 'buyerName', bt: 'BT-44', bg: 'BG-7', role: 'buyer.name' },
+    { id: 'buyerStreet', bt: 'BT-50', bg: 'BG-8', role: 'buyer.street' },
+    { id: 'buyerPostalCode', bt: 'BT-53', bg: 'BG-8', role: 'buyer.postalCode' },
+    { id: 'buyerCity', bt: 'BT-52', bg: 'BG-8', role: 'buyer.city' },
+    { id: 'buyerCountry', bt: 'BT-55', bg: 'BG-8', role: 'buyer.country' },
+    { id: 'buyerEndpointId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointId' },
+    { id: 'buyerEndpointSchemeId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointSchemeId' },
+    { id: 'lineDescription', bt: 'BT-153', bg: 'BG-31', role: 'line.itemName' },
+    { id: 'lineQuantity', bt: 'BT-129', bg: 'BG-25', role: 'line.quantity' },
+    { id: 'lineUnitCode', bt: 'BT-130', bg: 'BG-25', role: 'line.unitCode' },
+    { id: 'lineNetPrice', bt: 'BT-146', bg: 'BG-29', role: 'line.netPrice' },
+    { id: 'lineTaxPercent', bt: 'BT-152', bg: 'BG-30', role: 'line.taxPercent' },
+  ];
+
+  function getCatalogTerm(id) {
+    const catalog = getXRechnungFieldCatalog();
+    return (catalog.terms || []).find((term) => term.id === id) || null;
+  }
+
+  function getFormFieldBindings() {
+    return FORM_FIELD_BINDINGS.map((binding) => {
+      const term = getCatalogTerm(binding.bt);
+      const group = binding.bg === 'INVOICE' ? { name: 'INVOICE' } : getCatalogTerm(binding.bg);
+      return {
+        ...binding,
+        catalogName: term?.name || binding.bt,
+        datatype: term?.datatype || '',
+        requiredInModel: Boolean(term?.required),
+        groupName: group?.name || binding.bg,
+      };
+    });
+  }
+
+  function applyXRechnungFieldMetadata(document) {
+    let annotated = 0;
+    for (const binding of getFormFieldBindings()) {
+      const input = document.getElementById(binding.id);
+      if (!input) continue;
+      input.dataset.bt = binding.bt;
+      input.dataset.bg = binding.bg;
+      input.dataset.xrechnungName = binding.catalogName;
+      input.dataset.xrechnungGroup = binding.groupName;
+      const title = `${binding.bt} ${binding.catalogName} · ${binding.bg} ${binding.groupName}`;
+      input.setAttribute?.('title', title);
+      input.setAttribute?.('aria-description', title);
+      annotated += 1;
+    }
+    return { ok: true, annotated };
+  }
+
   function decimal(value, fallback = 0) {
     const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -705,46 +774,6 @@
     }
   }
 
-  function renderAdvancedFieldCatalog(document) {
-    const container = document.getElementById('advancedFieldCatalog');
-    if (!container) return;
-    const groups = getAdvancedFieldGroups();
-    const replaceChildren = (...nodes) => {
-      if (typeof container.replaceChildren === 'function') container.replaceChildren(...nodes);
-      else {
-        while (container.firstChild) container.removeChild(container.firstChild);
-        nodes.forEach((node) => container.appendChild(node));
-      }
-    };
-    if (groups.length === 0) {
-      replaceChildren(document.createTextNode('XRechnung-Feldkatalog konnte nicht geladen werden.'));
-      return;
-    }
-    replaceChildren();
-    for (const group of groups) {
-      const article = document.createElement('article');
-      article.className = 'catalog-group';
-      article.dataset.group = group.groups[0] || group.key;
-      const title = document.createElement('h4');
-      title.textContent = group.label;
-      const description = document.createElement('p');
-      description.textContent = group.description;
-      const entries = document.createElement('p');
-      const strong = document.createElement('strong');
-      strong.textContent = 'Katalog zuerst:';
-      entries.appendChild(strong);
-      entries.appendChild(document.createTextNode(` ${group.entries.slice(0, 10).map((entry) => `${entry.id} ${entry.name}`).join(' · ')}`));
-      const note = document.createElement('p');
-      note.className = 'mini-note';
-      note.textContent = 'Export folgt schrittweise; diese Gruppe ist noch nicht vollständig round-trip-fähig.';
-      article.appendChild(title);
-      article.appendChild(description);
-      article.appendChild(entries);
-      article.appendChild(note);
-      container.appendChild(article);
-    }
-  }
-
   function initBrowser(document) {
     const form = document.getElementById('invoiceForm');
     const formatSelect = document.getElementById('format');
@@ -752,7 +781,7 @@
     const sourceFile = document.getElementById('sourceFile');
     if (!form || !formatSelect) return;
     markRequiredFields(document);
-    renderAdvancedFieldCatalog(document);
+    applyXRechnungFieldMetadata(document);
 
     function renderPlan() {
       const fmt = FORMATS[formatSelect.value];
@@ -815,5 +844,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, renderAdvancedFieldCatalog, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

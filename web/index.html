@@ -91,69 +91,58 @@
           <fieldset>
             <legend>Rechnung</legend>
             <div class="grid four">
-              <label><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceNumber" value="RE-2025-0001" required></label>
-              <label><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="issueDate" type="date" value="2025-01-15" required></label>
-              <label><span class="label-text">Fällig am<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="dueDate" type="date" value="2025-02-01" required></label>
-              <label><span class="label-text">Währung</span> <input id="currency" value="EUR" autocomplete="off"></label>
-              <label><span class="label-text">IBAN<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
-              <label><span class="label-text">Zahlungsbedingungen<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentTerms" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
-              <label><span class="label-text">Leitweg-ID / BuyerReference<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
-              <label><span class="label-text">Auftragsnummer / Bestellreferenz<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="orderNumber" placeholder="Beim Empfänger erfragen" required></label>
+              <label><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceNumber" data-bt="BT-1" data-bg="INVOICE" value="RE-2025-0001" required></label>
+              <label><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="issueDate" data-bt="BT-2" data-bg="INVOICE" type="date" value="2025-01-15" required></label>
+              <label><span class="label-text">Fällig am<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="dueDate" data-bt="BT-9" data-bg="INVOICE" type="date" value="2025-02-01" required></label>
+              <label><span class="label-text">Währung</span> <input id="currency" data-bt="BT-5" data-bg="INVOICE" value="EUR" autocomplete="off"></label>
+              <label><span class="label-text">IBAN<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentIban" data-bt="BT-84" data-bg="BG-17" value="DE00DEMO00000000000000" required></label>
+              <label><span class="label-text">Zahlungsbedingungen<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentTerms" data-bt="BT-20" data-bg="INVOICE" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
+              <label><span class="label-text">Leitweg-ID / BuyerReference<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerReference" data-bt="BT-10" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
+              <label><span class="label-text">Auftragsnummer / Bestellreferenz<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="orderNumber" data-bt="BT-13" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Rechnungssteller</legend>
             <div class="grid three">
-              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerName" value="Beispiel Lieferant GmbH" required></label>
-              <label><span class="label-text">Straße</span> <input id="sellerStreet" value="Musterstraße 1"></label>
-              <label><span class="label-text">PLZ</span> <input id="sellerPostalCode" value="10115"></label>
-              <label><span class="label-text">Stadt</span> <input id="sellerCity" value="Berlin"></label>
-              <label><span class="label-text">Land</span> <input id="sellerCountry" value="DE"></label>
-              <label><span class="label-text">USt-ID</span> <input id="sellerVatId" value="BEISPIEL-VAT-ID"></label>
-              <label><span class="label-text">Seller Identifier<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerIdentifier" value="BEISPIEL-SELLER-ID" required></label>
-              <label><span class="label-text">E-Mail / Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerEndpointId" value="seller@example.invalid" required></label>
-              <label><span class="label-text">Telefon<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerTelephone" value="+49 30 123456" required></label>
-              <label><span class="label-text">Endpoint schemeID</span> <input id="sellerEndpointSchemeId" value="EM"></label>
+              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerName" data-bt="BT-27" data-bg="BG-4" value="Beispiel Lieferant GmbH" required></label>
+              <label><span class="label-text">Straße</span> <input id="sellerStreet" data-bt="BT-35" data-bg="BG-5" value="Musterstraße 1"></label>
+              <label><span class="label-text">PLZ</span> <input id="sellerPostalCode" data-bt="BT-38" data-bg="BG-5" value="10115"></label>
+              <label><span class="label-text">Stadt</span> <input id="sellerCity" data-bt="BT-37" data-bg="BG-5" value="Berlin"></label>
+              <label><span class="label-text">Land</span> <input id="sellerCountry" data-bt="BT-40" data-bg="BG-5" value="DE"></label>
+              <label><span class="label-text">USt-ID</span> <input id="sellerVatId" data-bt="BT-31" data-bg="BG-4" value="BEISPIEL-VAT-ID"></label>
+              <label><span class="label-text">Seller Identifier<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerIdentifier" data-bt="BT-29" data-bg="BG-4" value="BEISPIEL-SELLER-ID" required></label>
+              <label><span class="label-text">E-Mail / Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerEndpointId" data-bt="BT-34" data-bg="BG-4" value="seller@example.invalid" required></label>
+              <label><span class="label-text">Telefon<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerTelephone" data-bt="BT-42" data-bg="BG-6" value="+49 30 123456" required></label>
+              <label><span class="label-text">Endpoint schemeID</span> <input id="sellerEndpointSchemeId" data-bt="BT-34" data-bg="BG-4" value="EM"></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Empfänger</legend>
             <div class="grid three">
-              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerName" value="Beispiel Empfänger" required></label>
-              <label><span class="label-text">Straße</span> <input id="buyerStreet" value="Empfängerweg 1"></label>
-              <label><span class="label-text">PLZ</span> <input id="buyerPostalCode" value="00000"></label>
-              <label><span class="label-text">Stadt</span> <input id="buyerCity" value="Beispielstadt"></label>
-              <label><span class="label-text">Land</span> <input id="buyerCountry" value="DE"></label>
-              <label><span class="label-text">Endpoint-ID</span> <input id="buyerEndpointId" value="buyer@example.invalid"></label>
-              <label><span class="label-text">Endpoint schemeID</span> <input id="buyerEndpointSchemeId" value="EM"></label>
+              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerName" data-bt="BT-44" data-bg="BG-7" value="Beispiel Empfänger" required></label>
+              <label><span class="label-text">Straße</span> <input id="buyerStreet" data-bt="BT-50" data-bg="BG-8" value="Empfängerweg 1"></label>
+              <label><span class="label-text">PLZ</span> <input id="buyerPostalCode" data-bt="BT-53" data-bg="BG-8" value="00000"></label>
+              <label><span class="label-text">Stadt</span> <input id="buyerCity" data-bt="BT-52" data-bg="BG-8" value="Beispielstadt"></label>
+              <label><span class="label-text">Land</span> <input id="buyerCountry" data-bt="BT-55" data-bg="BG-8" value="DE"></label>
+              <label><span class="label-text">Endpoint-ID</span> <input id="buyerEndpointId" data-bt="BT-49" data-bg="BG-7" value="buyer@example.invalid"></label>
+              <label><span class="label-text">Endpoint schemeID</span> <input id="buyerEndpointSchemeId" data-bt="BT-49" data-bg="BG-7" value="EM"></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Position</legend>
             <div class="grid four">
-              <label><span class="label-text">Beschreibung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineDescription" value="Beispiel Leistung" required></label>
-              <label><span class="label-text">Menge<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineQuantity" value="1" inputmode="decimal" required></label>
-              <label><span class="label-text">Einheit</span> <input id="lineUnitCode" value="C62"></label>
-              <label><span class="label-text">Nettopreis<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineNetPrice" value="100.00" inputmode="decimal" required></label>
-              <label><span class="label-text">MwSt %</span> <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
+              <label><span class="label-text">Beschreibung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineDescription" data-bt="BT-153" data-bg="BG-31" value="Beispiel Leistung" required></label>
+              <label><span class="label-text">Menge<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineQuantity" data-bt="BT-129" data-bg="BG-25" value="1" inputmode="decimal" required></label>
+              <label><span class="label-text">Einheit</span> <input id="lineUnitCode" data-bt="BT-130" data-bg="BG-25" value="C62"></label>
+              <label><span class="label-text">Nettopreis<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineNetPrice" data-bt="BT-146" data-bg="BG-29" value="100.00" inputmode="decimal" required></label>
+              <label><span class="label-text">MwSt %</span> <input id="lineTaxPercent" data-bt="BT-152" data-bg="BG-30" value="19" inputmode="decimal"></label>
             </div>
           </fieldset>
 
-          <fieldset>
-            <legend>XRechnung Feldkatalog</legend>
-            <p class="helper">Der Katalog kommt aus dem offiziellen XRechnung-CIUS-Modell. Katalog zuerst bedeutet: Felder werden sichtbar und planbar, der vollständige Export folgt schrittweise und wird erst nach Generator- und KoSIT-Tests als unterstützt markiert.</p>
-            <div id="advancedFieldCatalog" class="catalog-grid">
-              <article class="catalog-group" data-group="BG-4"><h4>Parteien · SELLER / BUYER</h4><p>BG-4 SELLER und BG-7 BUYER: Namen, IDs, Kontakte und Adressen.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
-              <article class="catalog-group" data-group="BG-13"><h4>Lieferung · DELIVERY INFORMATION</h4><p>Lieferdatum, Lieferort und Lieferanschrift.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
-              <article class="catalog-group" data-group="BG-20"><h4>Zu-/Abschläge · ALLOWANCES / CHARGES</h4><p>BG-20/21 und BG-27/28 für Dokument- und Positions-Zu-/Abschläge.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
-              <article class="catalog-group" data-group="BG-23"><h4>Steuern · VAT BREAKDOWN</h4><p>BG-23 VAT BREAKDOWN mit Steuerkategorie, Steuerbasis, Steuerbetrag und Satz.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
-              <article class="catalog-group" data-group="BG-25"><h4>Positionen · INVOICE LINE</h4><p>BG-25 INVOICE LINE, BG-31 ITEM INFORMATION und erweiterte Positionsdetails.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
-              <article class="catalog-group" data-group="BG-24"><h4>Anhänge · ADDITIONAL SUPPORTING DOCUMENTS</h4><p>Rechnungsbegründende Unterlagen und eingebettete Anhänge.</p><p><strong>Katalog zuerst:</strong> Export folgt schrittweise.</p></article>
-            </div>
-          </fieldset>
+          <p class="helper">Die XRechnung-BT/BG-Zuordnung steckt im Hintergrund an den Formularfeldern. Nutzer füllen weiterhin das Formular aus; Agenten und Tests können die Feldmetadaten maschinenlesbar verwenden.</p>
 
           <button type="submit" class="button primary wide">Artefakt lokal erzeugen und prüfen</button>
           <pre id="result" class="result" hidden></pre>

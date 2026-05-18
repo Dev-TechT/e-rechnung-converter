@@ -325,19 +325,47 @@ test('runtime exposes full XRechnung catalog and advanced field groups without c
   assert(advanced.every((group) => group.status === 'catalog-first'), 'advanced groups should be catalog-first until generators support round-trip');
 });
 
-test('product page renders advanced catalog groups from the XRechnung field catalog', () => {
+test('xrechnung field catalog is used as background metadata on form fields, not as a visible reading list', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  assert(!html.includes('id="advancedFieldCatalog"'), 'field catalog should not be rendered as a visible catalog block');
+  assert(!html.includes('<legend>XRechnung Feldkatalog</legend>'), 'visible field catalog section should be removed');
   for (const needle of [
-    'id="advancedFieldCatalog"',
-    'data-group="BG-23"',
-    'VAT BREAKDOWN',
-    'data-group="BG-25"',
-    'INVOICE LINE',
-    'Katalog zuerst',
-    'Export folgt schrittweise',
+    'id="invoiceNumber"', 'data-bt="BT-1"',
+    'id="buyerReference"', 'data-bt="BT-10"',
+    'id="paymentTerms"', 'data-bt="BT-20"',
+    'id="sellerEndpointId"', 'data-bt="BT-34"',
+    'id="buyerEndpointId"', 'data-bt="BT-49"',
+    'id="lineDescription"', 'data-bt="BT-153"',
+    'data-bg="BG-4"', 'data-bg="BG-7"', 'data-bg="BG-25"'
   ]) {
-    assert(html.includes(needle), `missing advanced catalog UI: ${needle}`);
+    assert(html.includes(needle), `missing background field metadata: ${needle}`);
   }
+});
+
+test('runtime exposes BT/BG form field bindings for preflight and agent UI filling', () => {
+  const bindings = app.getFormFieldBindings();
+  const byId = Object.fromEntries(bindings.map((field) => [field.id, field]));
+  assert(byId.invoiceNumber.bt === 'BT-1', 'invoice number should bind to BT-1');
+  assert(byId.buyerReference.bt === 'BT-10', 'buyer reference should bind to BT-10');
+  assert(byId.paymentTerms.bt === 'BT-20', 'payment terms should bind to BT-20');
+  assert(byId.sellerEndpointId.bg === 'BG-4', 'seller endpoint should bind to seller group');
+  assert(byId.buyerEndpointId.bt === 'BT-49', 'buyer endpoint should bind to BT-49');
+  assert(byId.lineDescription.bt === 'BT-153', 'line description should bind to item name BT-153');
+  assert(bindings.every((field) => field.catalogName && field.groupName), 'bindings should be enriched from catalog metadata');
+});
+
+test('applyXRechnungFieldMetadata annotates existing inputs without duplicating visible catalog UI', () => {
+  const inputs = new Map();
+  for (const id of ['invoiceNumber', 'buyerReference', 'lineDescription']) {
+    inputs.set(id, { dataset: {}, attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } });
+  }
+  const document = { getElementById(id) { return inputs.get(id) || null; } };
+  const result = app.applyXRechnungFieldMetadata(document);
+  assert(result.annotated >= 3, 'expected field annotations');
+  assert(inputs.get('invoiceNumber').dataset.bt === 'BT-1', 'invoiceNumber data-bt missing');
+  assert(inputs.get('buyerReference').dataset.bt === 'BT-10', 'buyerReference data-bt missing');
+  assert(inputs.get('lineDescription').dataset.bg === 'BG-31', 'lineDescription BG should point to item information group');
+  assert(inputs.get('lineDescription').attributes.title.includes('BT-153'), 'title should include BT id for field-level help');
 });
 
 test('generate xrechnung ubl xml includes Leitweg-ID, payment terms, seller email and order reference', () => {

@@ -77,15 +77,15 @@
     "KoSIT setup documentation and product-page download links",
     "PDF.js selected as first browser-local embedded-text PDF extraction spike candidate, with explicit no-OCR and no-network/persistence bundle gates",
     "generated browser-loadable XRechnung BT/BG field catalog from xrechnung-cius-model.xml",
-    "advanced catalog-first UI groups for references, parties, delivery, payment, allowances/charges, taxes, extended lines and attachments",
-    "window.XInvoice.getXRechnungFieldCatalog and getAdvancedFieldGroups APIs for agents and UI planning"
+    "XRechnung BT/BG catalog used as hidden form-field metadata via data-bt/data-bg and window.XInvoice.getFormFieldBindings, not as a visible reading list",
+    "window.XInvoice.getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings and applyXRechnungFieldMetadata APIs for agents and form filling"
   ],
   "verified_commands": [
-    "python3 scripts/generate_xrechnung_field_catalog.py -> wrote web/xrechnung-field-catalog.js (196 terms, 32 groups)",
-    "node tests/webapp.test.js -> 31 ok checks",
-    ". .venv/bin/activate && python3 -m pytest -q -> 21 passed"
+    "node tests/webapp.test.js -> 33 ok checks",
+    ". .venv/bin/activate && python3 -m pytest -q -> 21 passed",
+    "runtime privacy scan over web HTML/JS -> ok"
   ],
-  "next_task": "Continue the browser-local PDF extraction lane: implement a small PDF.js embedded-text extractor behind registerLocalExtractor with a real local browser smoke, then keep scanned/image PDFs in low-confidence OCR/human-review flow until a reviewed OCR engine is bundled.",
+  "next_task": "Continue the browser-local PDF extraction lane only after preserving the corrected UX: keep BT/BG catalog in background field metadata, not as a visible catalog block. Then implement a small embedded-text PDF extractor behind registerLocalExtractor with browser smoke and scan/OCR low-confidence boundary.",
   "required_field_policy": [
     "Leitweg-ID / BuyerReference",
     "Bank details / IBAN",
@@ -100,6 +100,6 @@
     "CLI xrechnung-ubl now has a minimal JSON example that passes local KoSIT validation, but broader field coverage still needs iterative hardening.",
     "Browser app runs generation and sanity validation on the user's hardware, but does not yet ship KoSIT as a pure Browser/WebAssembly runtime; official validation uses local CLI/native validator artifacts.",
     "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction. PDF.js is selected for the next embedded-text PDF spike, but it is not shipped yet; scanned PDFs still need a separate local OCR engine and every extracted field stays human-review-gated.",
-    "The browser field catalog exposes broad XRechnung BT/BG coverage from the official model, but many advanced fields are catalog-first only; generator/export round-trip support still needs TDD and KoSIT validation per group."
+    "The browser field catalog is background metadata for existing form fields, not a visible user-facing list; broader advanced fields still need proper grouped form controls plus generator/export round-trip tests before being presented as supported."
   ]
 }
