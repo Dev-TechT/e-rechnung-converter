@@ -30,6 +30,32 @@ function sampleInvoice(overrides = {}) {
   };
 }
 
+function makeTinyTextPdf(lines) {
+  const content = lines.map((line, index) => {
+    const escaped = String(line).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+    return `BT /F1 12 Tf 50 ${760 - index * 18} Td (${escaped}) Tj ET`;
+  }).join('\n');
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream\nendobj\n`,
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf, 'latin1'));
+    pdf += object;
+  }
+  const xrefOffset = Buffer.byteLength(pdf, 'latin1');
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (const offset of offsets.slice(1)) pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
+}
+
 const pendingTests = [];
 
 function reportFailure(name, error) {
@@ -163,6 +189,33 @@ test('pdf intake normalizes async local OCR/PDF extractor success and failure', 
   assert(parsed.requiresLocalOcrEngine === true, 'async failure should require local OCR engine');
   assert(parsed.requiresServer === false, 'async failure should not suggest server');
   assert(parsed.errors.some((error) => error.includes('ocr worker crashed')), 'async failure should include cause');
+});
+
+test('pdf text spike has deterministic local text-PDF fixture and low-confidence scanned-PDF boundary', () => {
+  const textPdf = makeTinyTextPdf([
+    'Rechnungsnummer: RE-PDFJS-1',
+    'Leitweg-ID: LW-PDFJS-1',
+    'IBAN: DE89370400440532013000'
+  ]);
+  const scannedLikePdf = makeTinyTextPdf([]);
+  assert(textPdf.includes(Buffer.from('/BaseFont /Helvetica')), 'text PDF fixture should contain embedded text font instructions');
+  assert(textPdf.includes(Buffer.from('RE-PDFJS-1')), 'text PDF fixture should contain a realistic invoice number');
+  assert(scannedLikePdf.includes(Buffer.from('/Contents 5 0 R')), 'scanned-like fixture should still be a parseable PDF shell');
+  assert(!scannedLikePdf.includes(Buffer.from('Rechnungsnummer')), 'scanned-like fixture should not expose invoice text');
+});
+
+test('pdf.js is selected for the first local PDF text-extraction spike with explicit limits', () => {
+  const docs = fs.readFileSync(path.join(__dirname, '..', 'docs', 'browser-agent-api.md'), 'utf8');
+  for (const needle of [
+    'PDF.js',
+    'Apache-2.0',
+    'pdfjs-dist@4.10.38',
+    'nur eingebetteten PDF-Text',
+    'keine OCR für Scan-/Bild-PDFs',
+    'keine Runtime-Netzwerk-/Persistenz-APIs',
+  ]) {
+    assert(docs.includes(needle), `missing PDF.js spike decision/limit: ${needle}`);
+  }
 });
 
 test('browser execution model explains GitHub Pages hosting, user hardware and KoSIT boundary', () => {

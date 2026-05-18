@@ -74,15 +74,16 @@
     "browser generation for xrechnung-ubl, xrechnung-cii, generic ubl and XML preparation packages for zugferd/factur-x",
     "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports",
     "machine-readable window.XInvoice.getBrowserExecutionModel API explaining GitHub Pages, user hardware, OCR and KoSIT boundaries",
-    "KoSIT setup documentation and product-page download links"
+    "KoSIT setup documentation and product-page download links",
+    "PDF.js selected as first browser-local embedded-text PDF extraction spike candidate, with explicit no-OCR and no-network/persistence bundle gates"
   ],
   "verified_commands": [
     "python3 scripts/bootstrap_validators.py --include-visualization -> ok true, manifest at tools/kosit/manifest.json",
     "xrechnung-converter examples/minimal-invoice.json -o out/kosit-minimal.xml --kosit-validator tools/kosit/validator-1.6.2-standalone.jar --kosit-scenarios tools/kosit/xrechnung-config/scenarios.xml --report-dir reports/kosit-minimal-5 -> ok true, engine kosit, report_path reports/kosit-minimal-5/kosit-minimal-report.xml",
     ". .venv/bin/activate && python3 -m pytest -q -> 21 passed",
-    "node tests/webapp.test.js -> 24 ok checks"
+    "node tests/webapp.test.js -> 26 ok checks"
   ],
-  "next_task": "Choose and integrate a real browser-local PDF/OCR engine behind the extractor hook, then continue CII/Core hardening and plan/integrate Mustangproject and veraPDF for ZUGFeRD/Factur-X.",
+  "next_task": "Build the PDF.js browser-local embedded-text extraction spike behind registerLocalExtractor with a real local browser smoke, then decide whether to keep PDF.js, add separate OCR for scanned PDFs, or defer heavy OCR to Desktop/CLI.",
   "required_field_policy": [
     "Leitweg-ID / BuyerReference",
     "Bank details / IBAN",
@@ -96,6 +97,6 @@
   "current_limits": [
     "CLI xrechnung-ubl now has a minimal JSON example that passes local KoSIT validation, but broader field coverage still needs iterative hardening.",
     "Browser app runs generation and sanity validation on the user's hardware, but does not yet ship KoSIT as a pure Browser/WebAssembly runtime; official validation uses local CLI/native validator artifacts.",
-    "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction, but a real OCR/PDF engine still needs to be selected, bundled and tested before automatic PDF prefill is active."
+    "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction. PDF.js is selected for the next embedded-text PDF spike, but it is not shipped yet; scanned PDFs still need a separate local OCR engine and every extracted field stays human-review-gated."
   ]
 }

@@ -52,6 +52,21 @@ window.XInvoice.registerLocalExtractor('pdf', async ({ file }) => {
 
 If no extractor is registered, PDF/DOC/DOCX return a structured failure that asks for a local OCR/PDF engine or Desktop/CLI extraction. Any extracted fields are marked as suggestions and require human review before conversion.
 
+### PDF text-extraction spike decision
+
+For the first browser-local PDF text-extraction spike, use PDF.js via `pdfjs-dist@4.10.38` as the candidate engine.
+
+Decision facts checked for this spike:
+
+- License: Apache-2.0.
+- NPM package: `pdfjs-dist@4.10.38`, Node engine `>=20`, unpacked package size about 37 MB; a production bundle must be size-checked before shipping.
+- Scope: extracts only eingebetteten PDF-Text from locally selected PDFs; no semantic correctness guarantee.
+- Explicit limit: nur eingebetteten PDF-Text; keine OCR für Scan-/Bild-PDFs. Scanned PDFs must return a low-confidence/review-required result and remain a separate local OCR/WebWorker/WASM task.
+- Privacy gate: keep the runtime bundle free of network/persistence calls; keine Runtime-Netzwerk-/Persistenz-APIs (`fetch(`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `localStorage`, `sessionStorage`, `indexedDB`). If PDF.js helper code is bundled, tree-shake or wrap it so URL/network loading paths are not present in shipped runtime source.
+- Human review remains mandatory for every extracted field.
+
+Do not change the product UI from “OCR-Engine lokal einbindbar” to “PDF-Text lokal extrahierbar” until a real browser smoke with a local sample PDF passes and the bundle passes the privacy scan.
+
 ## Agent usage
 
 In the browser console or another browser automation agent:

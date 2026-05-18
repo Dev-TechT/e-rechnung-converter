@@ -277,6 +277,7 @@ Hinzugefügt:
 - Browser-App unter `web/` mit XRechnung UBL, XRechnung CII, generischem EN16931 UBL und XML-Vorbereitungspaketen für ZUGFeRD/Factur-X
 - Browser-Agent-API `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern und Browser-Sanity-Validierung
 - Browser-Local-Extractor-Hook `window.XInvoice.registerLocalExtractor(kind, fn)` für geprüfte lokale OCR/PDF-Engines ohne Server-Upload
+- PDF-Text-Extraktion-Spike vorbereitet: PDF.js (`pdfjs-dist@4.10.38`, Apache-2.0, ca. 37 MB unpacked) ist der erste Kandidat für eingebetteten PDF-Text; Scan-/Bild-PDF-OCR bleibt separat, low-confidence und human-review-pflichtig.
 
 Noch nicht implementiert:
 - CII/PDF/A-3-Erzeugung in der Python-CLI/Core-Bibliothek
