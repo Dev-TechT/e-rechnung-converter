@@ -49,6 +49,55 @@ test('all browser formats are implemented and selectable', () => {
   }
 });
 
+test('product copy does not describe the app as a demo or fake legal certainty', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  assert(!/\bDemo\b/i.test(html), 'page should not present product as Demo');
+  assert(!/rechtssicher garantiert|100% DSGVO|GoBD-konform garantiert/i.test(html), 'unsafe legal overclaim');
+});
+
+test('product page explains where KoSIT and official validation artifacts come from', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  for (const needle of [
+    'github.com/itplr-kosit/validator',
+    'validator-1.6.2-standalone.jar',
+    'github.com/itplr-kosit/validator-configuration-xrechnung',
+    'xrechnung-3.0.2-validator-configuration-2026-01-31.zip',
+    'github.com/itplr-kosit/xrechnung-visualization',
+    'Mustangproject',
+    'veraPDF',
+  ]) {
+    assert(html.includes(needle), `missing validator info: ${needle}`);
+  }
+});
+
+test('product page includes local document intake without remote upload claims', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  assert(html.includes('id="sourceFile"'), 'missing local file input');
+  assert(html.includes('accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml"'), 'missing accepted invoice formats');
+  assert(html.includes('Datei bleibt in diesem Browser-Tab'), 'missing local-only upload wording');
+});
+
+test('local document intake parses csv txt and xml snippets without network', () => {
+  let parsed = app.parseLocalDocument({ name: 'invoice.csv', type: 'text/csv', text: 'invoiceNumber,buyerReference,orderNumber\nRE-1,LW-1,PO-1' });
+  assert(parsed.ok === true, 'csv should parse');
+  assert(parsed.fields.invoiceNumber === 'RE-1', 'csv invoice number missing');
+  parsed = app.parseLocalDocument({ name: 'invoice.txt', type: 'text/plain', text: 'Rechnungsnummer: RE-2\nLeitweg-ID: LW-2\nAuftragsnummer: PO-2' });
+  assert(parsed.ok === true, 'txt should parse');
+  assert(parsed.fields.invoiceNumber === 'RE-2', 'txt invoice number missing');
+  parsed = app.parseLocalDocument({ name: 'invoice.xml', type: 'application/xml', text: '<Invoice><cbc:ID>RE-3</cbc:ID><cbc:BuyerReference>LW-3</cbc:BuyerReference></Invoice>' });
+  assert(parsed.ok === true, 'xml should parse');
+  assert(parsed.fields.invoiceNumber === 'RE-3', 'xml invoice number missing');
+});
+
+test('local document intake is honest about pdf/doc/docx requiring local desktop extraction', () => {
+  for (const name of ['invoice.pdf', 'invoice.doc', 'invoice.docx']) {
+    const parsed = app.parseLocalDocument({ name, type: 'application/octet-stream', text: '' });
+    assert(parsed.ok === false, `${name} should not pretend browser extraction`);
+    assert(parsed.requiresDesktopExtraction === true, `${name} should require desktop extraction`);
+    assert(parsed.errors.some((error) => error.includes('Desktop')), `${name} should mention Desktop extraction`);
+  }
+});
+
 test('preflight rejects missing required fields before conversion for every format', () => {
   for (const formatId of Object.keys(app.FORMATS)) {
     const result = app.preflightInvoice(sampleInvoice({ buyerReference: '', orderNumber: '', paymentIban: '', paymentTerms: '', seller: { name: 'Demo Lieferant GmbH', endpointId: '', sellerIdentifier: '' } }), formatId);

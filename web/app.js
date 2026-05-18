@@ -307,6 +307,126 @@
     return String(invoice.invoiceNumber || 'rechnung').replace(/[^A-Za-z0-9._-]+/g, '_');
   }
 
+  function extensionFromName(name) {
+    const match = String(name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+    return match ? match[1] : '';
+  }
+
+  function parseCsvLine(line) {
+    const cells = [];
+    let current = '';
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (char === '"' && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = !quoted;
+      } else if (char === ',' && !quoted) {
+        cells.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    cells.push(current.trim());
+    return cells;
+  }
+
+  function mapKnownFieldName(name) {
+    const normalized = String(name || '').trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g, '');
+    const aliases = {
+      invoicenumber: 'invoiceNumber', rechnungsnummer: 'invoiceNumber', id: 'invoiceNumber',
+      issuedate: 'issueDate', rechnungsdatum: 'issueDate',
+      duedate: 'dueDate', faelligkeitsdatum: 'dueDate', fälligkeitsdatum: 'dueDate',
+      buyerreference: 'buyerReference', leitwegid: 'buyerReference', leitweg: 'buyerReference',
+      ordernumber: 'orderNumber', auftragsnummer: 'orderNumber', bestellreferenz: 'orderNumber',
+      paymentiban: 'paymentIban', iban: 'paymentIban',
+      paymentterms: 'paymentTerms', zahlungsbedingungen: 'paymentTerms',
+      sellername: 'sellerName', rechnungssteller: 'sellerName',
+      sellerendpointid: 'sellerEndpointId', selleremail: 'sellerEndpointId', email: 'sellerEndpointId',
+      selleridentifier: 'sellerIdentifier', verkaeuferkennung: 'sellerIdentifier', verkäuferkennung: 'sellerIdentifier',
+      buyername: 'buyerName', empfaenger: 'buyerName', empfänger: 'buyerName',
+      linedescription: 'lineDescription', beschreibung: 'lineDescription',
+      linequantity: 'lineQuantity', menge: 'lineQuantity',
+      linenetprice: 'lineNetPrice', nettopreis: 'lineNetPrice',
+    };
+    return aliases[normalized];
+  }
+
+  function parseTextFields(text) {
+    const fields = {};
+    const patterns = [
+      ['invoiceNumber', /(?:Rechnungsnummer|Invoice\s*Number)\s*[:#-]\s*([^\n\r]+)/i],
+      ['buyerReference', /(?:Leitweg-ID|Buyer\s*Reference|Leitweg)\s*[:#-]\s*([^\n\r]+)/i],
+      ['orderNumber', /(?:Auftragsnummer|Bestellreferenz|Order\s*Number)\s*[:#-]\s*([^\n\r]+)/i],
+      ['paymentIban', /(?:IBAN)\s*[:#-]\s*([^\n\r]+)/i],
+      ['paymentTerms', /(?:Zahlungsbedingungen|Payment\s*Terms)\s*[:#-]\s*([^\n\r]+)/i],
+      ['sellerEndpointId', /(?:E-Mail|Email|Endpoint-ID)\s*[:#-]\s*([^\n\r]+)/i],
+    ];
+    for (const [key, pattern] of patterns) {
+      const match = String(text || '').match(pattern);
+      if (match) fields[key] = match[1].trim();
+    }
+    return fields;
+  }
+
+  function parseXmlFields(text) {
+    const fields = {};
+    const valueOf = (localName) => {
+      const match = String(text || '').match(new RegExp(`<(?:[A-Za-z0-9_-]+:)?${localName}[^>]*>([^<]+)</(?:[A-Za-z0-9_-]+:)?${localName}>`, 'i'));
+      return match ? match[1].trim() : '';
+    };
+    const id = valueOf('ID');
+    const buyerReference = valueOf('BuyerReference');
+    if (id) fields.invoiceNumber = id;
+    if (buyerReference) fields.buyerReference = buyerReference;
+    return fields;
+  }
+
+  function parseCsvFields(text) {
+    const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) return parseTextFields(text);
+    const headers = parseCsvLine(lines[0]);
+    const values = parseCsvLine(lines[1]);
+    const fields = {};
+    headers.forEach((header, index) => {
+      const mapped = mapKnownFieldName(header);
+      if (mapped && values[index]) fields[mapped] = values[index].trim();
+    });
+    return fields;
+  }
+
+  function parseLocalDocument(file) {
+    const ext = extensionFromName(file?.name);
+    const text = String(file?.text || '');
+    if (['pdf', 'doc', 'docx'].includes(ext)) {
+      return {
+        ok: false,
+        requiresDesktopExtraction: true,
+        errors: ['PDF/DOC/DOCX brauchen eine lokale Desktop-Extraktion mit Sichtprüfung. Die Browser-Seite lädt nichts hoch und behauptet keine fehlerfreie OCR.'],
+        fields: {},
+      };
+    }
+    if (!['txt', 'csv', 'xml'].includes(ext)) {
+      return { ok: false, errors: ['Unbekannter Dateityp. Unterstützt im Browser: TXT, CSV, XML. PDF/DOC/DOCX folgen über lokale Desktop-Extraktion.'], fields: {} };
+    }
+    const fields = ext === 'csv' ? parseCsvFields(text) : ext === 'xml' ? parseXmlFields(text) : parseTextFields(text);
+    return { ok: true, errors: [], warnings: ['Automatisch erkannte Felder müssen vor der Konvertierung geprüft werden.'], fields };
+  }
+
+  function applyParsedFields(document, fields) {
+    const assignments = {
+      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerEndpointId: 'sellerEndpointId', sellerIdentifier: 'sellerIdentifier', buyerName: 'buyerName', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineNetPrice: 'lineNetPrice',
+    };
+    for (const [key, id] of Object.entries(assignments)) {
+      if (!fields[key]) continue;
+      const input = document.getElementById(id);
+      if (input) input.value = fields[key];
+    }
+  }
+
   function validationPlan(formatId) {
     const fmt = FORMATS[formatId];
     return {
@@ -449,6 +569,7 @@
     const form = document.getElementById('invoiceForm');
     const formatSelect = document.getElementById('format');
     const plan = document.getElementById('validationPlan');
+    const sourceFile = document.getElementById('sourceFile');
     if (!form || !formatSelect) return;
     markRequiredFields(document);
 
@@ -458,6 +579,28 @@
     }
     formatSelect.addEventListener('change', renderPlan);
     renderPlan();
+
+    if (sourceFile) {
+      sourceFile.addEventListener('change', () => {
+        const selected = sourceFile.files && sourceFile.files[0];
+        if (!selected) return;
+        const ext = extensionFromName(selected.name);
+        if (['pdf', 'doc', 'docx'].includes(ext)) {
+          showResult(document, parseLocalDocument({ name: selected.name, text: '' }));
+          return;
+        }
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+          const parsed = parseLocalDocument({ name: selected.name, type: selected.type, text: String(reader.result || '') });
+          if (parsed.ok) applyParsedFields(document, parsed.fields);
+          showResult(document, parsed.ok
+            ? { ok: true, warnings: parsed.warnings, message: `Lokale Datei gelesen: ${selected.name}. Bitte erkannte Felder prüfen.` }
+            : parsed);
+        });
+        reader.addEventListener('error', () => showResult(document, { ok: false, errors: [`Datei konnte nicht lokal gelesen werden: ${selected.name}`] }));
+        reader.readAsText(selected);
+      });
+    }
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -481,5 +624,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, convertForAgent, validationPlan, validateGeneratedArtifact, parseLocalDocument, initBrowser };
 });

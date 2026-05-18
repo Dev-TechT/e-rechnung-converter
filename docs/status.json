@@ -1,8 +1,9 @@
 {
   "project": "xrechnung-converter",
+  "product_name": "E-Rechnung Studio",
   "date": "2026-05-18",
   "workspace": "/home/neon/xrechnung-converter",
-  "status": "mvp-spike-with-format-catalog",
+  "status": "product-build-with-browser-app-and-validator-plan",
   "decision": "build-greenfield-with-official-local-components",
   "local_first_answer": "Conversion and validation can run locally/offline after validator artifacts are installed; invoice upload to the internet is not required by default.",
   "official_components_checked": {
@@ -10,18 +11,21 @@
       "repo": "https://github.com/itplr-kosit/validator",
       "latest": "v1.6.2",
       "asset": "validator-1.6.2-standalone.jar",
+      "direct_download": "https://github.com/itplr-kosit/validator/releases/download/v1.6.2/validator-1.6.2-standalone.jar",
       "role": "local XRechnung UBL/CII validation"
     },
     "validator_configuration_xrechnung": {
       "repo": "https://github.com/itplr-kosit/validator-configuration-xrechnung",
       "latest": "v2026-01-31",
       "asset": "xrechnung-3.0.2-validator-configuration-2026-01-31.zip",
+      "direct_download": "https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-01-31/xrechnung-3.0.2-validator-configuration-2026-01-31.zip",
       "role": "XRechnung 3.0.x schemas, Schematron, scenarios and codelists"
     },
     "xrechnung_visualization": {
       "repo": "https://github.com/itplr-kosit/xrechnung-visualization",
       "latest": "v2026-01-31",
       "asset": "xrechnung-3.0.2-visualization-2026-01-31.zip",
+      "direct_download": "https://github.com/itplr-kosit/xrechnung-visualization/releases/download/v2026-01-31/xrechnung-3.0.2-visualization-2026-01-31.zip",
       "role": "local XSLT preview, not the invoice exchange format"
     },
     "mustangproject": {
@@ -33,9 +37,12 @@
       "repo": "https://github.com/veraPDF/veraPDF-apps",
       "role": "local PDF/A-3 carrier validation for ZUGFeRD/Factur-X"
     },
-    "e_invoice_eu": {
-      "repo": "https://github.com/gflohr/e-invoice-eu",
-      "role": "possible OSS generator/reference for JSON/spreadsheet to Factur-X/ZUGFeRD/UBL/CII/XRechnung; license/quality needs final direct review"
+    "invoice_converter_com": {
+      "urls_reviewed": [
+        "https://www.invoice-converter.com/en/pdf-to-zugferd",
+        "https://www.invoice-converter.com/en/convert"
+      ],
+      "observed_positioning": "Competitor positions around upload -> extraction/review -> standards-aligned download for XRechnung, ZUGFeRD, Factur-X, UBL and CII. Our differentiation remains local-first/no-server-upload."
     }
   },
   "supported_output_format_catalog": [
@@ -47,7 +54,7 @@
   ],
   "implemented": [
     "canonical invoice dataclasses",
-    "minimal UBL XML candidate exporter",
+    "minimal UBL XML candidate exporter in CLI/core",
     "output format catalog for XRechnung UBL, XRechnung CII, ZUGFeRD PDF/A-3, Factur-X PDF/A-3, generic UBL",
     "CLI --output-format",
     "CLI --print-validation-plan",
@@ -56,15 +63,17 @@
     "KoSIT validator hook",
     "examples",
     "research/GDPR/format workflow/plan docs",
-    "static browser app under web/ with no database, no uploads and no persistence APIs",
+    "static browser product UI under web/ with no database, no server uploads and no persistence APIs",
+    "local browser document intake for TXT/CSV/XML and honest Desktop-extraction gate for PDF/DOC/DOCX",
     "browser generation for xrechnung-ubl, xrechnung-cii, generic ubl and XML preparation packages for zugferd/factur-x",
-    "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports"
+    "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports",
+    "KoSIT setup documentation and product-page download links"
   ],
   "verified_commands": [
     ". .venv/bin/activate && pytest -q -> 11 passed",
-    "node tests/webapp.test.js -> 13 ok checks",
+    "node tests/webapp.test.js -> 18 ok checks",
     "with_server.py HTTP smoke for /web/, /web/app.js and /web/styles.css -> 200 OK",
-    "static source smoke -> no localStorage/sessionStorage/indexedDB/fetch/XMLHttpRequest/WebSocket in web/app.js",
+    "static runtime source smoke -> no localStorage/sessionStorage/indexedDB/fetch/XMLHttpRequest/WebSocket/sendBeacon in web runtime",
     ". .venv/bin/activate && xrechnung-converter examples/minimal-invoice.json -o out/minimal-invoice.xml --output-format xrechnung-ubl -> ok true basic",
     ". .venv/bin/activate && xrechnung-converter examples/minimal-invoice.csv -o out/minimal-invoice-csv.xml --output-format xrechnung-ubl -> ok true basic"
   ],
@@ -78,9 +87,9 @@
     "Purchase order reference / order number",
     "Invoice metadata and line data"
   ],
-  "blockers": [
+  "current_limits": [
     "Current CLI xrechnung-ubl output only passes local basic sanity checks, not yet official KoSIT validation.",
     "Browser app runs sanity validation during generation, but cannot run official KoSIT/Mustang/veraPDF validation inside GitHub Pages; production flow still needs local CLI/native validator artifacts.",
-    "PDF/DOC/DOCX/TXT extraction not implemented yet; architecture requires human review for uncertain extraction."
+    "Browser app parses TXT/CSV/XML locally; PDF/DOC/DOCX need the planned local Desktop/CLI extraction with human review."
   ]
 }

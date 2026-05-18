@@ -41,13 +41,13 @@ const invoice = {
   issueDate: '2025-01-15',
   dueDate: '2025-02-01',
   currency: 'EUR',
-  buyerReference: 'DEMO-LEITWEG-001',
-  orderNumber: 'DEMO-ORDER-001',
+  buyerReference: 'BEISPIEL-LEITWEG-001',
+  orderNumber: 'BEISPIEL-ORDER-001',
   paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
-  seller: { name: 'Demo Lieferant GmbH', country: 'DE', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'DEMO-SELLER-ID' },
-  buyer: { name: 'Demo Empfänger', country: 'DE' },
-  paymentIban: 'DE00DEMO00000000000000',
-  lines: [{ description: 'Demo Leistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' }]
+  seller: { name: 'Beispiel Lieferant GmbH', country: 'DE', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'BEISPIEL-SELLER-ID' },
+  buyer: { name: 'Beispiel Empfänger', country: 'DE' },
+  paymentIban: 'DE00BEISPIEL0000000000',
+  lines: [{ description: 'Beispiel Leistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' }]
 };
 
 const result = window.XInvoice.convertForAgent(invoice, 'xrechnung-cii');

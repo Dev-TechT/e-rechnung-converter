@@ -3,122 +3,203 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Local E-Rechnung Converter</title>
-  <meta name="description" content="Browser-only Converter für XRechnung UBL, XRechnung CII, UBL und lokale ZUGFeRD/Factur-X-Vorbereitung. Keine Uploads, keine Datenbank.">
+  <title>E-Rechnung Studio · Local-first XRechnung Converter</title>
+  <meta name="description" content="Local-first E-Rechnung Produkt für XRechnung UBL, XRechnung CII, UBL und lokale ZUGFeRD/Factur-X-Vorbereitung. Dateien bleiben im Browser-Tab.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="hero">
-    <p class="eyebrow">Local-first · Keine Datenbank · Kein Upload</p>
-    <h1>E-Rechnung im Browser vorbereiten</h1>
-    <p>Der Converter erzeugt lokal im Browser XRechnung UBL, XRechnung CII, generisches EN16931 UBL und vorbereitende XML-Pakete für ZUGFeRD/Factur-X. Pflichtfelder wie Leitweg-ID, Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail, Seller Identifier und Auftragsnummer sind mit * markiert; wenn sie fehlen, wird nicht konvertiert. Nach der Erzeugung läuft eine Browser-Sanity-Validierung. Für echte Einreichung bleiben lokale KoSIT-/Mustang-/veraPDF-Prüfungen nötig.</p>
-    <nav>
-      <a href="#generator">Generator</a>
-      <a href="#privacy">Datenschutz</a>
-      <a href="#profile">Profil</a>
+    <nav class="topbar" aria-label="Hauptnavigation">
+      <a class="brand" href="#top" aria-label="E-Rechnung Studio Start">
+        <span class="brand-mark">ER</span>
+        <span>E-Rechnung Studio</span>
+      </a>
+      <div class="navlinks">
+        <a href="#converter">Konvertieren</a>
+        <a href="#validators">Validieren</a>
+        <a href="#privacy">Datenschutz</a>
+        <a href="#profile">Kontakt</a>
+      </div>
     </nav>
+
+    <div class="hero-grid" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow">Local-first · Browser-only · für echte Rechnungen vorbereitet</p>
+        <h1>Rechnungen in E-Rechnungsformate umwandeln, ohne sie hochzuladen.</h1>
+        <p class="lead">Erzeuge XRechnung UBL, XRechnung CII und EN16931 UBL direkt im Browser. Für ZUGFeRD/Factur-X erstellt die Seite ein lokales Vorbereitungspaket; echtes PDF/A-3 wird anschließend lokal mit Desktop-/CLI-Tools gebaut und validiert.</p>
+        <div class="actions">
+          <a class="button primary" href="#converter">Rechnung starten</a>
+          <a class="button secondary" href="#validators">KoSIT beziehen</a>
+        </div>
+      </div>
+      <aside class="hero-panel" aria-label="Produktstatus">
+        <div class="status-line"><span></span> Kein Upload. Keine DB. Keine Cookies.</div>
+        <dl>
+          <div><dt>Formate</dt><dd>UBL · CII · ZUGFeRD/Factur-X Paket</dd></div>
+          <div><dt>Pflichtfelder</dt><dd>Leitweg-ID, IBAN, Zahlungsbedingungen, Seller-ID</dd></div>
+          <div><dt>Validierung</dt><dd>Browser-Sanity + lokaler KoSIT/Mustang/veraPDF Gate</dd></div>
+        </dl>
+      </aside>
+    </div>
   </header>
 
   <main>
-    <section class="notice">
-      <h2>Wichtig</h2>
-      <p>Die Ablehnungsnachricht, Leitweg-ID und Auftragsnummer aus echten Vorgängen dürfen nicht als Demo-Daten verwendet werden. Diese Seite nutzt nur Platzhalter. Fehlende Leitweg-ID oder Auftragsnummer werden vor dem Download blockiert, damit man sie beim Empfänger nachfragen kann.</p>
+    <section class="strip" aria-label="Sicherheitsversprechen">
+      <span>Standardmäßig offline nutzbar</span>
+      <span>Andere Agenten: <code>window.XInvoice.convertForAgent</code></span>
+      <span>Keine automatische OCR-Übertreibung</span>
     </section>
 
-    <section id="generator" class="card">
-      <h2>Generator</h2>
-      <form id="invoiceForm">
-        <div class="grid two">
-          <label>Zielformat
+    <section id="converter" class="workspace">
+      <div class="section-head">
+        <p class="eyebrow">Arbeitsfläche</p>
+        <h2>Dokument einlesen, Felder prüfen, Artefakt erzeugen</h2>
+        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDF/DOC/DOCX brauchen eine lokale Desktop-Extraktion mit Sichtprüfung, damit keine falschen Rechnungsdaten geraten werden.</p>
+      </div>
+
+      <form id="invoiceForm" class="converter-layout">
+        <aside class="intake-card">
+          <div class="step">1</div>
+          <h3>Dokument</h3>
+          <label class="dropzone">Rechnung lokal auswählen
+            <input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml">
+            <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet.</span>
+          </label>
+          <div class="mini-note">PDF/DOC/DOCX: Dieses Webprodukt zeigt bewusst nur den lokalen nächsten Schritt an. Die robuste Extraktion kommt als Desktop/CLI-Modul.</div>
+
+          <h3>Zielformat</h3>
+          <label>Format
             <select id="format">
               <option value="xrechnung-ubl">XRechnung UBL XML</option>
               <option value="xrechnung-cii">XRechnung CII XML</option>
               <option value="ubl">Generisches EN16931 UBL XML</option>
-              <option value="zugferd-pdf">ZUGFeRD Browser-Paket für lokale PDF/A-3-Montage</option>
-              <option value="factur-x-pdf">Factur-X Browser-Paket für lokale PDF/A-3-Montage</option>
+              <option value="zugferd-pdf">ZUGFeRD Vorbereitungspaket</option>
+              <option value="factur-x-pdf">Factur-X Vorbereitungspaket</option>
             </select>
           </label>
-          <label>Währung
-            <input id="currency" value="EUR" autocomplete="off">
+          <pre id="validationPlan" class="plan"></pre>
+        </aside>
+
+        <section class="form-card">
+          <div class="step">2</div>
+          <h3>Pflichtfelder</h3>
+          <p class="helper"><strong>Was bedeutet *?</strong> Mit * markierte Felder sind Pflichtfelder. Sie blockieren die Konvertierung, wenn sie fehlen. Beispielwerte sind Platzhalter; echte Werte beim Rechnungsempfänger prüfen.</p>
+
+          <fieldset>
+            <legend>Rechnung</legend>
+            <div class="grid four">
+              <label>Rechnungsnummer <input id="invoiceNumber" value="RE-2025-0001" required></label>
+              <label>Rechnungsdatum <input id="issueDate" type="date" value="2025-01-15" required></label>
+              <label>Fällig am <input id="dueDate" type="date" value="2025-02-01" required></label>
+              <label>Währung <input id="currency" value="EUR" autocomplete="off"></label>
+              <label>IBAN <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
+              <label>Zahlungsbedingungen <input id="paymentTerms" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
+              <label>Leitweg-ID / BuyerReference <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
+              <label>Auftragsnummer / Bestellreferenz <input id="orderNumber" placeholder="Beim Empfänger erfragen" required></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Rechnungssteller</legend>
+            <div class="grid three">
+              <label>Name <input id="sellerName" value="Beispiel Lieferant GmbH" required></label>
+              <label>Straße <input id="sellerStreet" value="Musterstraße 1"></label>
+              <label>PLZ <input id="sellerPostalCode" value="10115"></label>
+              <label>Stadt <input id="sellerCity" value="Berlin"></label>
+              <label>Land <input id="sellerCountry" value="DE"></label>
+              <label>USt-ID <input id="sellerVatId" value="BEISPIEL-VAT-ID"></label>
+              <label>Seller Identifier <input id="sellerIdentifier" value="BEISPIEL-SELLER-ID" required></label>
+              <label>E-Mail / Endpoint-ID <input id="sellerEndpointId" value="seller@example.invalid" required></label>
+              <label>Endpoint schemeID <input id="sellerEndpointSchemeId" value="EM"></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Empfänger</legend>
+            <div class="grid three">
+              <label>Name <input id="buyerName" value="Beispiel Empfänger" required></label>
+              <label>Straße <input id="buyerStreet" value="Empfängerweg 1"></label>
+              <label>PLZ <input id="buyerPostalCode" value="00000"></label>
+              <label>Stadt <input id="buyerCity" value="Beispielstadt"></label>
+              <label>Land <input id="buyerCountry" value="DE"></label>
+              <label>Endpoint-ID <input id="buyerEndpointId" value="buyer@example.invalid"></label>
+              <label>Endpoint schemeID <input id="buyerEndpointSchemeId" value="EM"></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Position</legend>
+            <div class="grid four">
+              <label>Beschreibung <input id="lineDescription" value="Beispiel Leistung" required></label>
+              <label>Menge <input id="lineQuantity" value="1" inputmode="decimal" required></label>
+              <label>Einheit <input id="lineUnitCode" value="C62"></label>
+              <label>Nettopreis <input id="lineNetPrice" value="100.00" inputmode="decimal" required></label>
+              <label>MwSt % <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
+            </div>
+          </fieldset>
+
+          <button type="submit" class="button primary wide">Artefakt lokal erzeugen und prüfen</button>
+          <pre id="result" class="result" hidden></pre>
+          <label>Artefakt Vorschau
+            <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier das XML-Artefakt."></textarea>
           </label>
-        </div>
-        <pre id="validationPlan" class="plan"></pre>
-
-        <h3>Rechnung</h3>
-        <div class="grid four">
-          <label>Rechnungsnummer <input id="invoiceNumber" value="DEMO-2025-0001" required></label>
-          <label>Rechnungsdatum <input id="issueDate" type="date" value="2025-01-15" required></label>
-          <label>Fällig am <input id="dueDate" type="date" value="2025-02-01" required></label>
-          <label>IBAN <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
-          <label>Zahlungsbedingungen <input id="paymentTerms" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
-        </div>
-        <div class="grid two">
-          <label>Leitweg-ID / BuyerReference <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
-          <label>Auftragsnummer / Bestellreferenz <input id="orderNumber" placeholder="Beim Empfänger erfragen" required></label>
-        </div>
-
-        <h3>Rechnungssteller</h3>
-        <div class="grid three">
-          <label>Name <input id="sellerName" value="Demo Lieferant GmbH" required></label>
-          <label>Straße <input id="sellerStreet" value="Musterstraße 1"></label>
-          <label>PLZ <input id="sellerPostalCode" value="10115"></label>
-          <label>Stadt <input id="sellerCity" value="Berlin"></label>
-          <label>Land <input id="sellerCountry" value="DE"></label>
-          <label>USt-ID <input id="sellerVatId" value="DEMO-VAT-ID"></label>
-          <label>Seller Identifier <input id="sellerIdentifier" value="DEMO-SELLER-ID" required></label>
-          <label>E-Mail / Endpoint-ID <input id="sellerEndpointId" value="seller@example.invalid" required></label>
-          <label>Endpoint schemeID <input id="sellerEndpointSchemeId" value="EM"></label>
-        </div>
-
-        <h3>Empfänger</h3>
-        <div class="grid three">
-          <label>Name <input id="buyerName" value="Demo Empfänger" required></label>
-          <label>Straße <input id="buyerStreet" value="Empfängerweg 1"></label>
-          <label>PLZ <input id="buyerPostalCode" value="00000"></label>
-          <label>Stadt <input id="buyerCity" value="Demostadt"></label>
-          <label>Land <input id="buyerCountry" value="DE"></label>
-          <label>Endpoint-ID <input id="buyerEndpointId" value="buyer@example.invalid"></label>
-          <label>Endpoint schemeID <input id="buyerEndpointSchemeId" value="EM"></label>
-        </div>
-
-        <h3>Position</h3>
-        <div class="grid four">
-          <label>Beschreibung <input id="lineDescription" value="Demo Leistung" required></label>
-          <label>Menge <input id="lineQuantity" value="1" inputmode="decimal" required></label>
-          <label>Einheit <input id="lineUnitCode" value="C62"></label>
-          <label>Nettopreis <input id="lineNetPrice" value="100.00" inputmode="decimal" required></label>
-          <label>MwSt % <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
-        </div>
-
-        <button type="submit">Artefakt lokal erzeugen und prüfen</button>
+        </section>
       </form>
-      <pre id="result" class="result" hidden></pre>
-      <label>Artefakt Vorschau
-        <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier das XML-Artefakt."></textarea>
-      </label>
     </section>
 
-    <section id="privacy" class="card">
-      <h2>Datenschutzmodell</h2>
+    <section id="validators" class="card validator-card">
+      <div>
+        <p class="eyebrow">Offizielle Validierung</p>
+        <h2>Woher bekommt man KoSIT?</h2>
+        <p>KoSIT besteht aus zwei Teilen: dem Validator-Programm und der XRechnung-Konfiguration. Beides liegt öffentlich auf GitHub. Für XRechnung muss beides zusammen lokal ausgeführt werden.</p>
+      </div>
+      <div class="validator-grid">
+        <article>
+          <h3>1 · Validator</h3>
+          <p><a href="https://github.com/itplr-kosit/validator" rel="noopener">github.com/itplr-kosit/validator</a></p>
+          <code>validator-1.6.2-standalone.jar</code>
+          <a class="small-link" href="https://github.com/itplr-kosit/validator/releases/download/v1.6.2/validator-1.6.2-standalone.jar" rel="noopener">Direktdownload</a>
+        </article>
+        <article>
+          <h3>2 · XRechnung-Konfiguration</h3>
+          <p><a href="https://github.com/itplr-kosit/validator-configuration-xrechnung" rel="noopener">github.com/itplr-kosit/validator-configuration-xrechnung</a></p>
+          <code>xrechnung-3.0.2-validator-configuration-2026-01-31.zip</code>
+          <a class="small-link" href="https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-01-31/xrechnung-3.0.2-validator-configuration-2026-01-31.zip" rel="noopener">Direktdownload</a>
+        </article>
+        <article>
+          <h3>3 · Visualisierung</h3>
+          <p><a href="https://github.com/itplr-kosit/xrechnung-visualization" rel="noopener">github.com/itplr-kosit/xrechnung-visualization</a></p>
+          <code>xrechnung-3.0.2-visualization-2026-01-31.zip</code>
+          <a class="small-link" href="https://github.com/itplr-kosit/xrechnung-visualization/releases/download/v2026-01-31/xrechnung-3.0.2-visualization-2026-01-31.zip" rel="noopener">Direktdownload</a>
+        </article>
+      </div>
+      <pre class="plan">curl -L https://github.com/itplr-kosit/validator/releases/download/v1.6.2/validator-1.6.2-standalone.jar -o validator-1.6.2-standalone.jar
+curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-01-31/xrechnung-3.0.2-validator-configuration-2026-01-31.zip -o xrechnung-config.zip</pre>
+      <p class="helper">ZUGFeRD/Factur-X zusätzlich lokal prüfen mit Mustangproject und veraPDF. Diese Browser-Seite führt nur schnelle Strukturchecks aus; offizielle Gültigkeit entsteht erst nach lokalem Validator-PASS.</p>
+    </section>
+
+    <section id="privacy" class="card privacy-card">
+      <p class="eyebrow">Datenschutzmodell</p>
+      <h2>Rechnungsdaten verlassen das Gerät standardmäßig nicht.</h2>
       <ul>
-        <li>Keine Datenbank.</li>
-        <li>Keine Cookies.</li>
-        <li>Keine Uploads.</li>
+        <li>Keine Datenbank, keine Cookies, kein Tracking.</li>
         <li>Keine Netzwerk-API im Generator-Code.</li>
-        <li>Daten leben nur im Formular/RAM des Browser-Tabs und in der heruntergeladenen Datei.</li>
+        <li>Lokale Dateiauswahl liest TXT/CSV/XML nur im Browser-Tab.</li>
+        <li>PDF/DOC/DOCX werden nicht hochgeladen; Desktop-Extraktion folgt als lokales Modul.</li>
       </ul>
-      <p>GitHub Pages liefert nur HTML/CSS/JS aus. Die Rechnung wird lokal im Browser verarbeitet. Für andere Agenten/LLMs steht `window.XInvoice.convertForAgent(invoice, formatId)` als strukturierte Browser-API bereit; sie gibt entweder Fehler zu fehlenden Pflichtfeldern oder ein erzeugtes Artefakt plus Browser-Validierungsbericht zurück.</p>
+      <p>Für andere Agenten/LLMs steht <code>window.XInvoice.convertForAgent(invoice, formatId)</code> bereit. Die API gibt strukturierte Fehler zurück, statt bei unvollständigen Daten still Artefakte zu bauen.</p>
     </section>
 
-    <section id="profile" class="card">
-      <h2>Profil / Kontakt</h2>
-      <p>Ein Projekt von Dev-TechT / Antonios. Profil-Link kann hier ergänzt werden, sobald die Demo verifiziert und veröffentlicht ist.</p>
+    <section id="profile" class="card profile-card">
+      <p class="eyebrow">Kontakt</p>
+      <h2>Dev-TechT</h2>
+      <p>Local-first E-Rechnungsprodukt von Dev-TechT / Antonios. Nächster Produktschritt: Desktop-/CLI-Paket mit KoSIT, Mustangproject, veraPDF und geprüfter PDF/DOC/DOCX-Extraktion.</p>
       <p><a href="https://github.com/Dev-TechT" rel="me noopener">GitHub Profil Dev-TechT</a></p>
     </section>
   </main>
 
   <footer>
-    <p>Keine Rechts- oder Steuerberatung. Die Browser-Sanity-Validierung ersetzt nicht KoSIT, Mustangproject, veraPDF oder die fachliche Prüfung.</p>
+    <p>Keine Rechts- oder Steuerberatung. Browser-Sanity-Validierung ersetzt nicht KoSIT, Mustangproject, veraPDF oder fachliche Prüfung.</p>
   </footer>
   <script src="app.js"></script>
 </body>
