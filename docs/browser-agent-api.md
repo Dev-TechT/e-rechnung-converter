@@ -50,22 +50,31 @@ window.XInvoice.registerLocalExtractor('pdf', async ({ file }) => {
 });
 ```
 
-If no extractor is registered, PDF/DOC/DOCX return a structured failure that asks for a local OCR/PDF engine or Desktop/CLI extraction. Any extracted fields are marked as suggestions and require human review before conversion.
+If no extractor is registered, DOC/DOCX return a structured failure that asks for a local OCR/PDF engine or Desktop/CLI extraction. PDF has a built-in local embedded-text extractor for simple text PDFs; if it cannot find usable embedded invoice text, it returns a structured low-confidence/review-required failure. Any extracted fields are marked as suggestions and require human review before conversion.
 
-### PDF text-extraction spike decision
+### PDF engine decision
 
-For the first browser-local PDF text-extraction spike, use PDF.js via `pdfjs-dist@4.10.38` as the candidate engine.
+PDF.js via `pdfjs-dist@4.10.38` was checked as a candidate for a later stronger browser-local PDF engine, but it is nicht gebündelt in the shipped runtime of this slice. The current shipped extractor is intentionally smaller: it reads only simple embedded PDF text strings from locally selected PDF bytes.
 
-Decision facts checked for this spike:
+Candidate facts checked:
 
-- License: Apache-2.0.
+- PDF.js license: Apache-2.0.
 - NPM package: `pdfjs-dist@4.10.38`, Node engine `>=20`, unpacked package size about 37 MB; a production bundle must be size-checked before shipping.
-- Scope: extracts only eingebetteten PDF-Text from locally selected PDFs; no semantic correctness guarantee.
-- Explicit limit: nur eingebetteten PDF-Text; keine OCR für Scan-/Bild-PDFs. Scanned PDFs must return a low-confidence/review-required result and remain a separate local OCR/WebWorker/WASM task.
-- Privacy gate: keep the runtime bundle free of network/persistence calls; keine Runtime-Netzwerk-/Persistenz-APIs (`fetch(`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `localStorage`, `sessionStorage`, `indexedDB`). If PDF.js helper code is bundled, tree-shake or wrap it so URL/network loading paths are not present in shipped runtime source.
+- Current shipped scope: nur einfachen eingebetteten PDF-Text; no semantic correctness guarantee.
+- Explicit limit: keine OCR für Scan-/Bild-PDFs. Scanned PDFs return a low-confidence/review-required result and remain a separate local OCR/WebWorker/WASM task.
+- Privacy gate: keep the runtime bundle free of network/persistence calls; keine Runtime-Netzwerk-/Persistenz-APIs (`fetch(`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `localStorage`, `sessionStorage`, `indexedDB`). If PDF.js helper code is bundled later, tree-shake or wrap it so URL/network loading paths are not present in shipped runtime source.
 - Human review remains mandatory for every extracted field.
 
-Do not change the product UI from “OCR-Engine lokal einbindbar” to “PDF-Text lokal extrahierbar” until a real browser smoke with a local sample PDF passes and the bundle passes the privacy scan.
+### PDF text-extraction implementation
+
+The shipped browser runtime now includes a minimal `browser-local-pdf-text` extractor registered behind `window.XInvoice.registerLocalExtractor`/`parseLocalDocument` semantics. It reads locally selected PDF bytes in the browser and extracts simple embedded text strings only. It has deliberately narrow scope:
+
+- local-only: no CDN, no upload, no runtime network or persistence APIs;
+- suggestions only: parsed fields set `requiresHumanReview: true`;
+- low-confidence boundary: scanned/image PDFs, empty PDFs and unsupported compressed text streams return structured local failures instead of invented fields;
+- not OCR: Scan-OCR remains a separate reviewed local engine task.
+
+The PDF.js candidate facts above remain useful for a later stronger engine, but the current shipped extractor is intentionally smaller than a bundled PDF.js runtime so the privacy scan can stay strict.
 
 ## Agent usage
 

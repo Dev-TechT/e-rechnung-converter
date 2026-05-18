@@ -69,8 +69,9 @@
     "examples",
     "research/GDPR/format workflow/plan docs",
     "static browser product UI under web/ with no database, no server uploads and no persistence APIs",
-    "local browser document intake for TXT/CSV/XML",
-    "browser-local extractor hook for PDF/DOC/DOCX via window.XInvoice.registerLocalExtractor(kind, fn), requiring human review and no server",
+    "local browser document intake for TXT/CSV/XML and simple embedded-text PDFs",
+    "built-in browser-local PDF text extractor for simple embedded text, returning review-required suggestions and structured low-confidence failures for scan/empty/unsupported PDFs",
+    "browser-local extractor hook for DOC/DOCX and future stronger PDF/OCR engines via window.XInvoice.registerLocalExtractor(kind, fn), requiring human review and no server",
     "browser generation for xrechnung-ubl, xrechnung-cii, generic ubl and XML preparation packages for zugferd/factur-x",
     "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports",
     "machine-readable window.XInvoice.getBrowserExecutionModel API explaining GitHub Pages, user hardware, OCR and KoSIT boundaries",
@@ -81,11 +82,12 @@
     "window.XInvoice.getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings and applyXRechnungFieldMetadata APIs for agents and form filling"
   ],
   "verified_commands": [
-    "node tests/webapp.test.js -> 33 ok checks",
+    "node tests/webapp.test.js -> 37 ok checks",
     ". .venv/bin/activate && python3 -m pytest -q -> 21 passed",
-    "runtime privacy scan over web HTML/JS -> ok"
+    "runtime privacy scan over web HTML/JS -> ok",
+    "redacted private-sample PDF smoke -> structured local low-confidence failure, no server, no field values printed"
   ],
-  "next_task": "Continue the browser-local PDF extraction lane only after preserving the corrected UX: keep BT/BG catalog in background field metadata, not as a visible catalog block. Then implement a small embedded-text PDF extractor behind registerLocalExtractor with browser smoke and scan/OCR low-confidence boundary.",
+  "next_task": "Harden the browser-local document lane without weakening privacy: either add DOCX local text extraction as a separate extractor or make embedded Factur-X/ZUGFeRD XML detection from PDFs more robust. Keep BT/BG catalog in background field metadata, not as a visible catalog block.",
   "required_field_policy": [
     "Leitweg-ID / BuyerReference",
     "Bank details / IBAN",
@@ -99,7 +101,7 @@
   "current_limits": [
     "CLI xrechnung-ubl now has a minimal JSON example that passes local KoSIT validation, but broader field coverage still needs iterative hardening.",
     "Browser app runs generation and sanity validation on the user's hardware, but does not yet ship KoSIT as a pure Browser/WebAssembly runtime; official validation uses local CLI/native validator artifacts.",
-    "Browser app parses TXT/CSV/XML locally and has a reviewed hook for PDF/DOC/DOCX local extraction. PDF.js is selected for the next embedded-text PDF spike, but it is not shipped yet; scanned PDFs still need a separate local OCR engine and every extracted field stays human-review-gated.",
+    "Browser app parses TXT/CSV/XML and simple embedded-text PDFs locally. PDF text extraction is suggestions-only, does not handle scan/image OCR, and intentionally returns low-confidence structured failures for empty, scanned or unsupported PDFs. DOC/DOCX still need a separate local engine or Desktop/CLI path and every extracted field stays human-review-gated.",
     "The browser field catalog is background metadata for existing form fields, not a visible user-facing list; broader advanced fields still need proper grouped form controls plus generator/export round-trip tests before being presented as supported."
   ]
 }

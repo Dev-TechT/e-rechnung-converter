@@ -18,7 +18,7 @@ python3 -m http.server 8124 --bind 127.0.0.1
 # öffnen: http://127.0.0.1:8124/web/
 ```
 
-Die Browser-App nutzt keine Datenbank, keine Cookies und keine Server-Uploads. GitHub Pages hostet nur statische Dateien; Generierung, Browser-Sanity-Checks und lokale Dateiauswertung laufen auf der Hardware des Benutzers. TXT/CSV/XML können lokal im Browser-Tab eingelesen werden. PDF/DOC/DOCX sind semantische Extraktion: eine geprüfte OCR/PDF-Engine kann lokal im Browser eingebunden werden, sonst bleibt der sichere Fallback ein lokales Desktop/CLI-Modul mit Sichtprüfung.
+Die Browser-App nutzt keine Datenbank, keine Cookies und keine Server-Uploads. GitHub Pages hostet nur statische Dateien; Generierung, Browser-Sanity-Checks und lokale Dateiauswertung laufen auf der Hardware des Benutzers. TXT/CSV/XML können lokal im Browser-Tab eingelesen werden. PDFs mit einfachem eingebettetem Text werden lokal als prüfpflichtige Vorschläge ausgelesen; Scan-/Bild-PDFs sind damit keine OCR und brauchen weiter eine geprüfte lokale OCR-Engine. DOC/DOCX brauchen ebenfalls eine geprüfte lokale Engine oder ein Desktop/CLI-Modul mit Sichtprüfung.
 
 Der Browser lädt zusätzlich einen aus dem offiziellen XRechnung-CIUS-Modell generierten Feldkatalog (`web/xrechnung-field-catalog.js`). Dieser Katalog wird nicht als sichtbare Leseliste angezeigt, sondern im Hintergrund an die bestehenden Formularfelder gebunden (`data-bt`, `data-bg`, Tooltips und Agenten-API). So bleiben Nutzer im Formularfluss, während Tests und Agenten die XRechnung-Zuordnung maschinenlesbar nutzen können.
 
@@ -95,6 +95,6 @@ node tests/webapp.test.js
 
 Generierung und einfache Browser-Sanity-Checks können im Browser des Benutzers laufen und tun das bereits. GitHub Pages ist dafür nur statisches Hosting: HTML, CSS und JavaScript werden ausgeliefert, aber kein Dev-TechT-Server verarbeitet Rechnungen. Ein lokaler Server ist dafür nicht zwingend nötig; eine statische Seite, PWA oder Desktop-Shell reicht.
 
-OCR/PDF-Erkennung kann ebenfalls auf der Hardware des Benutzers laufen. Dafür braucht die Browser-App eine geprüfte lokale Engine, z.B. PDF-Text-Extraktion und OCR über WebAssembly/Web Worker. Bis diese Engine eingebunden und getestet ist, darf die App aus PDF/DOC/DOCX keine Werte raten; sie zeigt den lokalen nächsten Schritt an und verlangt Human Review.
+PDF-Erkennung kann ebenfalls teilweise auf der Hardware des Benutzers laufen: die Browser-App liest jetzt einfachen eingebetteten PDF-Text lokal als Vorschläge aus. Das ist keine OCR und keine semantische Garantie. Scan-/Bild-PDFs sowie DOC/DOCX dürfen weiterhin keine Werte raten; sie brauchen eine geprüfte lokale OCR/Dokument-Engine oder ein Desktop/CLI-Modul und Human Review.
 
 Die offizielle KoSIT-Validierung ist heute aber ein Java-Validator plus XRechnung-Konfigurationsartefakte. Praktisch und wartbar läuft sie lokal als CLI/Desktop-Schritt, nicht auf einem fremden Webserver. Eine spätere WebAssembly-/Browser-Portierung wäre möglich, aber deutlich aufwendiger: Java-Runtime/Dateisystem, ZIP-Artefakte, XSLT/Schematron und Report-Dateien müssten sauber im Browser verpackt werden. Deshalb ist der robuste nächste Produktschritt: Browser für Eingabe/Generierung/OCR-Adapter, lokale CLI/Desktop-Komponente für KoSIT/Mustang/veraPDF und Human Review.

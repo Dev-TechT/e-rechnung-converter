@@ -114,12 +114,13 @@ test('product page explains where KoSIT and official validation artifacts come f
   }
 });
 
-test('product page includes local document intake and OCR architecture without remote upload claims', () => {
+test('product page includes local document intake and PDF text extraction architecture without remote upload claims', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
   assert(html.includes('id="sourceFile"'), 'missing local file input');
   assert(html.includes('accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml"'), 'missing accepted invoice formats');
   assert(html.includes('Datei bleibt in diesem Browser-Tab'), 'missing local-only upload wording');
-  assert(html.includes('OCR-Engine lokal einbindbar'), 'missing local OCR engine wording');
+  assert(html.includes('Eingebetteter PDF-Text lokal extrahierbar'), 'missing embedded PDF text wording');
+  assert(html.includes('Scan-OCR nur mit geprüfter lokaler Engine'), 'missing scan OCR boundary wording');
   assert(html.includes('GitHub Pages liefert nur HTML, CSS und JavaScript aus'), 'missing GitHub static hosting wording');
 });
 
@@ -130,6 +131,7 @@ test('product page exposes full XRechnung product direction and advanced field g
     'Alle XRechnung-BT/BG-Felder',
     'Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert',
     'Fehlende Pflichtangaben werden vor dem Generieren markiert',
+    'Eingebettetes ZUGFeRD/Factur-X-XML ist der richtige nächste lokale Ausbau, wird in diesem Browser-Slice aber noch nicht behauptet',
     'xrechnung-3.0.2-bundle-2026-01-31.zip',
   ]) {
     assert(html.includes(needle), `missing full product direction copy: ${needle}`);
@@ -162,8 +164,8 @@ test('local document intake parses csv txt and xml snippets without network', ()
   assert(parsed.fields.invoiceNumber === 'RE-3', 'xml invoice number missing');
 });
 
-test('local document intake is honest about pdf/doc/docx needing a browser-local extraction engine', () => {
-  for (const name of ['invoice.pdf', 'invoice.doc', 'invoice.docx']) {
+test('local document intake is honest about doc/docx needing a browser-local extraction engine', () => {
+  for (const name of ['invoice.doc', 'invoice.docx']) {
     const parsed = app.parseLocalDocument({ name, type: 'application/octet-stream', text: '' });
     assert(parsed.ok === false, `${name} should not pretend extraction without an engine`);
     assert(parsed.requiresLocalOcrEngine === true, `${name} should require a browser-local OCR/PDF engine`);
@@ -231,17 +233,100 @@ test('pdf text spike has deterministic local text-PDF fixture and low-confidence
   assert(!scannedLikePdf.includes(Buffer.from('Rechnungsnummer')), 'scanned-like fixture should not expose invoice text');
 });
 
-test('pdf.js is selected for the first local PDF text-extraction spike with explicit limits', () => {
+test('PDF.js candidate facts are documented without implying a bundled runtime', () => {
   const docs = fs.readFileSync(path.join(__dirname, '..', 'docs', 'browser-agent-api.md'), 'utf8');
   for (const needle of [
     'PDF.js',
     'Apache-2.0',
     'pdfjs-dist@4.10.38',
-    'nur eingebetteten PDF-Text',
+    'nicht gebündelt',
+    'nur einfachen eingebetteten PDF-Text',
     'keine OCR für Scan-/Bild-PDFs',
     'keine Runtime-Netzwerk-/Persistenz-APIs',
   ]) {
-    assert(docs.includes(needle), `missing PDF.js spike decision/limit: ${needle}`);
+    assert(docs.includes(needle), `missing PDF engine decision/limit: ${needle}`);
+  }
+});
+
+test('built-in browser-local PDF text extractor maps embedded text as review-required suggestions', async () => {
+  const parsed = await app.parseLocalDocument({
+    name: 'invoice.pdf',
+    type: 'application/pdf',
+    bytes: makeTinyTextPdf([
+      'Rechnungsnummer: RE-PDF-TEXT-1',
+      'Leitweg-ID: LW-PDF-TEXT-1',
+      'Auftragsnummer: PO-PDF-TEXT-1',
+      'IBAN: DE89370400440532013000',
+      'Zahlungsbedingungen: 14 Tage ohne Abzug',
+      'Telefon: +49 30 123456',
+      'E-Mail: seller@example.invalid'
+    ])
+  });
+  assert(parsed.ok === true, 'embedded PDF text should parse locally');
+  assert(parsed.usedLocalExtractor === true, 'built-in PDF extractor should run through local extractor hook');
+  assert(parsed.extractionMethod === 'browser-local-pdf-text', 'method should identify browser-local PDF text extraction');
+  assert(parsed.requiresServer === false, 'PDF text extraction must not require a server');
+  assert(parsed.requiresHumanReview === true, 'PDF suggestions must require human review');
+  assert(parsed.confidence >= 0.6 && parsed.confidence < 1, 'embedded PDF text extraction should be useful but not final truth');
+  assert(parsed.fields.invoiceNumber === 'RE-PDF-TEXT-1', 'invoice number missing from embedded PDF text');
+  assert(parsed.fields.buyerReference === 'LW-PDF-TEXT-1', 'buyer reference missing from embedded PDF text');
+  assert(parsed.fields.orderNumber === 'PO-PDF-TEXT-1', 'order number missing from embedded PDF text');
+  assert(parsed.fields.paymentIban === 'DE89370400440532013000', 'IBAN missing from embedded PDF text');
+});
+
+test('built-in browser-local PDF text extractor fails closed for scanned empty or unmapped PDFs', async () => {
+  let parsed = await app.parseLocalDocument({
+    name: 'scan.pdf',
+    type: 'application/pdf',
+    bytes: makeTinyTextPdf([])
+  });
+  assert(parsed.ok === false, 'empty/scanned-like PDF should not be treated as extracted invoice data');
+  assert(parsed.requiresLocalOcrEngine === true, 'scan-like PDF should require a local OCR engine');
+  assert(parsed.requiresServer === false, 'scan-like PDF should not suggest a server fallback');
+  assert(parsed.requiresHumanReview === true, 'scan-like PDF boundary should remain review-required');
+  assert(parsed.confidence <= 0.2, 'scan-like PDF should be low confidence');
+  assert(parsed.errors.some((error) => /eingebetteten PDF-Text|Scan|OCR/i.test(error)), 'scan-like PDF should explain embedded text/OCR boundary');
+  assert(Object.keys(parsed.fields).length === 0, 'scan-like PDF must not invent fields');
+
+  parsed = await app.parseLocalDocument({
+    name: 'letter.pdf',
+    type: 'application/pdf',
+    bytes: makeTinyTextPdf(['Dies ist Text, aber keine erkennbaren Rechnungsfelder.'])
+  });
+  assert(parsed.ok === false, 'PDF text without mapped invoice fields should fail closed');
+  assert(parsed.confidence <= 0.2, 'unmapped PDF text should be downgraded to low confidence');
+  assert(Object.keys(parsed.fields).length === 0, 'unmapped PDF text must not invent fields');
+});
+
+test('built-in browser-local PDF text extractor returns structured errors for broken PDF input', async () => {
+  const parsed = await app.parseLocalDocument({
+    name: 'broken.pdf',
+    type: 'application/pdf',
+    bytes: Buffer.from('not a pdf', 'utf8')
+  });
+  assert(parsed.ok === false, 'broken PDF should fail structurally');
+  assert(parsed.requiresServer === false, 'broken PDF should not need server fallback');
+  assert(parsed.requiresLocalOcrEngine === true, 'broken PDF should remain local-engine bounded');
+  assert(Array.isArray(parsed.errors) && parsed.errors.length > 0, 'broken PDF should return structured errors');
+});
+
+test('all shipped browser runtime files avoid network and persistence APIs', () => {
+  const root = path.join(__dirname, '..', 'web');
+  const runtimeFiles = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(js|mjs|html)$/i.test(entry.name)) runtimeFiles.push(full);
+    }
+  };
+  walk(root);
+  assert(runtimeFiles.length >= 3, 'expected shipped web runtime files');
+  for (const file of runtimeFiles) {
+    const source = fs.readFileSync(file, 'utf8');
+    for (const banned of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch(', 'XMLHttpRequest', 'new WebSocket', 'sendBeacon']) {
+      assert(!source.includes(banned), `banned browser API found in ${path.relative(root, file)}: ${banned}`);
+    }
   }
 });
 
@@ -250,7 +335,7 @@ test('browser execution model explains GitHub Pages hosting, user hardware and K
   assert(model.githubPages === 'static-hosting-only', 'GitHub Pages should only host static files');
   assert(model.runsOnUserHardware === true, 'browser work should run on user hardware');
   assert(model.requiresApplicationServer === false, 'product should not need an application server');
-  assert(model.ocr.mode === 'browser-local-engine', 'OCR should be modeled as browser-local engine');
+  assert(model.ocr.builtInPdfTextExtraction.method === 'browser-local-pdf-text', 'built-in PDF text extractor should be documented');
   assert(model.kosit.officialValidator === 'KoSIT validator + validator-configuration-xrechnung', 'KoSIT stack should be explicit');
   assert(model.kosit.browserOnlyStatus.includes('not shipped'), 'browser KoSIT boundary should be honest');
   assert(model.kosit.explainsWhyNotPureBrowser.includes('Java'), 'KoSIT explanation should mention Java');

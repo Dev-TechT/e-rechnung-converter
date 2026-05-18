@@ -47,7 +47,8 @@
   <main>
     <section class="strip" aria-label="Sicherheitsversprechen">
       <span>Standardmäßig offline nutzbar</span>
-      <span>OCR-Engine lokal einbindbar</span>
+      <span>Eingebetteter PDF-Text lokal extrahierbar</span>
+      <span>Scan-OCR nur mit geprüfter lokaler Engine</span>
       <span>Andere Agenten: <code>window.XInvoice.convertForAgent</code></span>
       <span>Keine automatische OCR-Übertreibung</span>
     </section>
@@ -56,7 +57,7 @@
       <div class="section-head">
         <p class="eyebrow">Arbeitsfläche</p>
         <h2>Dokument einlesen, Felder prüfen, Artefakt erzeugen</h2>
-        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDF/DOC/DOCX sollen per lokaler Browser-Extraktion/OCR oder eingebettetem XML vorbefüllt werden; automatisch erkannte Felder bleiben Vorschläge. Fehlende Pflichtangaben werden vor dem Generieren markiert.</p>
+        <p>Datei bleibt in diesem Browser-Tab. TXT/CSV/XML werden lokal ausgelesen. PDFs mit einfachem eingebettetem Text können lokal als Vorschläge vorbefüllen; Scan-OCR sowie DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder ein Desktop/CLI-Modul. Fehlende Pflichtangaben werden vor dem Generieren markiert.</p>
       </div>
 
       <form id="invoiceForm" class="converter-layout">
@@ -67,7 +68,7 @@
             <input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml">
             <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet.</span>
           </label>
-          <div class="mini-note">PDF/DOC/DOCX: OCR/Text-Extraktion soll lokal im Browser auf Ihrer Hardware laufen, sobald eine geprüfte Engine eingebunden ist. Bei ZUGFeRD/Factur-X wird zuerst eingebettetes XML gelesen, bevor OCR versucht wird. Ohne Engine zeigt das Produkt den lokalen nächsten Schritt an und erfindet keine Daten.</div>
+          <div class="mini-note">PDF: einfacher eingebetteter Text wird lokal im Browser gelesen und als Vorschlag ins Formular übertragen. Scan-/Bild-PDFs sind keine OCR und bleiben low-confidence/review-required. DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder Desktop/CLI-Extraktion. Eingebettetes ZUGFeRD/Factur-X-XML ist der richtige nächste lokale Ausbau, wird in diesem Browser-Slice aber noch nicht behauptet.</div>
 
           <div class="mini-note"><strong>Großes Formular als Ziel:</strong> Alle XRechnung-BT/BG-Felder sollen als Produktformular abbildbar werden. Der Ausbau erfolgt in Gruppen: Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert. Grundlage ist das offizielle <code>xrechnung-3.0.2-bundle-2026-01-31.zip</code>.</div>
 
@@ -191,8 +192,8 @@ curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/release
       <ul>
         <li>Keine Datenbank, keine Cookies, kein Tracking.</li>
         <li>Keine Netzwerk-API im Generator-Code.</li>
-        <li>Lokale Dateiauswahl liest TXT/CSV/XML nur im Browser-Tab.</li>
-        <li>PDF/DOC/DOCX werden nicht hochgeladen; OCR/PDF-Extraktion läuft nur über eine lokale Browser-Engine oder ein lokales Desktop/CLI-Modul und bleibt prüfpflichtig.</li>
+        <li>Lokale Dateiauswahl liest TXT/CSV/XML und einfachen eingebetteten PDF-Text nur im Browser-Tab.</li>
+        <li>PDFs werden nicht hochgeladen; erkannter PDF-Text ist nur ein Vorschlag. Scan-OCR sowie DOC/DOCX laufen nur über eine geprüfte lokale Browser-Engine oder ein lokales Desktop/CLI-Modul und bleiben prüfpflichtig.</li>
       </ul>
       <p>Für andere Agenten/LLMs steht <code>window.XInvoice.convertForAgent(invoice, formatId)</code> bereit. Die API gibt strukturierte Fehler zurück, statt bei unvollständigen Daten still Artefakte zu bauen.</p>
     </section>

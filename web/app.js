@@ -537,23 +537,42 @@
     return parseTextFields(text);
   }
 
-  function localExtractionFailure(message) {
+  function localExtractionFailure(message, details = {}) {
     return {
       ok: false,
-      requiresLocalOcrEngine: true,
+      requiresLocalOcrEngine: details.requiresLocalOcrEngine !== false,
+      requiresHumanReview: details.requiresHumanReview !== false,
       requiresServer: false,
       errors: [message || 'Lokale OCR/PDF-Engine konnte keine Rechnungsdaten erkennen.'],
-      warnings: [],
+      warnings: details.warnings || [],
       fields: {},
+      usedLocalExtractor: Boolean(details.usedLocalExtractor),
+      extractionMethod: details.extractionMethod,
+      confidence: details.confidence ?? 0,
     };
+  }
+
+  function hasSuggestedFields(fields) {
+    return Object.keys(fields || {}).length > 0;
   }
 
   function resultFromLocalExtraction(ext, extraction) {
     if (!extraction || extraction.ok === false) {
-      return localExtractionFailure(extraction?.error || extraction?.message);
+      return localExtractionFailure(extraction?.error || extraction?.message, {
+        usedLocalExtractor: Boolean(extraction),
+        extractionMethod: extraction?.method || `${ext}-local-extractor`,
+        confidence: extraction?.confidence ?? 0,
+        requiresHumanReview: true,
+      });
     }
     const text = String(extraction.text || '');
     const fields = { ...(text ? fieldsFromDocumentText('txt', text) : {}), ...(extraction.fields || {}) };
+    if (!hasSuggestedFields(fields)) {
+      return localExtractionFailure(
+        extraction.message || 'Lokale PDF-Text-Extraktion hat keinen eingebetteten PDF-Text mit Rechnungsfeldern gefunden. Scan-/Bild-PDFs brauchen eine echte lokale OCR-Engine und Human Review.',
+        { usedLocalExtractor: true, extractionMethod: extraction.method || `${ext}-local-extractor`, confidence: Math.min(extraction.confidence ?? 0.1, 0.2), requiresHumanReview: true }
+      );
+    }
     return {
       ok: true,
       errors: [],
@@ -566,6 +585,117 @@
       requiresServer: false,
     };
   }
+
+  function bytesToBinaryString(bytes) {
+    if (!bytes) return '';
+    if (typeof bytes === 'string') return bytes;
+    const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    let output = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < view.length; index += chunkSize) {
+      output += String.fromCharCode(...view.subarray(index, index + chunkSize));
+    }
+    return output;
+  }
+
+  function decodePdfLiteralString(value) {
+    let output = '';
+    for (let index = 0; index < value.length; index += 1) {
+      const char = value[index];
+      if (char !== '\\') {
+        output += char;
+        continue;
+      }
+      const next = value[index + 1];
+      if (next == null) break;
+      if (next === 'n') output += '\n';
+      else if (next === 'r') output += '\r';
+      else if (next === 't') output += '\t';
+      else if (next === 'b') output += '\b';
+      else if (next === 'f') output += '\f';
+      else if (next === '\n' || next === '\r') {
+        if (next === '\r' && value[index + 2] === '\n') index += 1;
+      } else if (/[0-7]/.test(next)) {
+        const octal = value.slice(index + 1, index + 4).match(/^[0-7]{1,3}/)?.[0] || '';
+        output += String.fromCharCode(Number.parseInt(octal, 8));
+        index += octal.length - 1;
+      } else output += next;
+      index += 1;
+    }
+    return output;
+  }
+
+  function decodePdfHexString(value) {
+    const clean = value.replace(/[^0-9a-f]/gi, '');
+    let output = '';
+    for (let index = 0; index < clean.length; index += 2) {
+      output += String.fromCharCode(Number.parseInt(clean.slice(index, index + 2).padEnd(2, '0'), 16));
+    }
+    return output;
+  }
+
+  function extractPdfStringLiterals(source) {
+    const texts = [];
+    const tokenPattern = /\((?:\\.|[^\\()])*\)\s*(?:Tj|'|")|\[(.*?)\]\s*TJ|<([0-9A-Fa-f\s]+)>\s*Tj/gs;
+    let match;
+    while ((match = tokenPattern.exec(source))) {
+      const token = match[0];
+      if (match[1] != null) {
+        const arraySource = match[1];
+        const itemPattern = /\((?:\\.|[^\\()])*\)|<([0-9A-Fa-f\s]+)>/g;
+        let item;
+        let joined = '';
+        while ((item = itemPattern.exec(arraySource))) {
+          const part = item[0];
+          joined += part.startsWith('(')
+            ? decodePdfLiteralString(part.slice(1, -1))
+            : decodePdfHexString(part.slice(1, -1));
+        }
+        if (joined.trim()) texts.push(joined);
+      } else if (match[2] != null) {
+        const decoded = decodePdfHexString(match[2]);
+        if (decoded.trim()) texts.push(decoded);
+      } else {
+        const literal = token.match(/^\((?:\\.|[^\\()])*\)/s)?.[0];
+        if (literal) {
+          const decoded = decodePdfLiteralString(literal.slice(1, -1));
+          if (decoded.trim()) texts.push(decoded);
+        }
+      }
+    }
+    return texts;
+  }
+
+  async function bytesFromLocalPdfInput(file) {
+    if (file?.bytes) return file.bytes;
+    if (file?.arrayBuffer) return new Uint8Array(await file.arrayBuffer());
+    if (file?.file?.arrayBuffer) return new Uint8Array(await file.file.arrayBuffer());
+    return null;
+  }
+
+  async function browserLocalPdfTextExtractor(file) {
+    const bytes = await bytesFromLocalPdfInput(file);
+    const source = bytesToBinaryString(bytes);
+    if (!source.startsWith('%PDF-')) {
+      return { ok: false, method: 'browser-local-pdf-text', confidence: 0, message: 'PDF-Datei konnte lokal nicht als PDF gelesen werden.' };
+    }
+    if (/\/Filter\s*\/FlateDecode/i.test(source)) {
+      return { ok: false, method: 'browser-local-pdf-text', confidence: 0.15, message: 'PDF enthält komprimierte Textstreams. Dieser lokale Spike liest nur einfachen eingebetteten PDF-Text; für diese Datei ist eine erweiterte lokale PDF-Engine oder OCR mit Human Review nötig.' };
+    }
+    const texts = [];
+    const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let stream;
+    while ((stream = streamPattern.exec(source))) {
+      texts.push(...extractPdfStringLiterals(stream[1]));
+    }
+    const text = texts.join('\n').trim();
+    if (!text) {
+      return { ok: false, method: 'browser-local-pdf-text', confidence: 0.1, message: 'Keinen eingebetteten PDF-Text gefunden. Scan-/Bild-PDFs brauchen eine echte lokale OCR-Engine und Human Review.' };
+    }
+    return { ok: true, method: 'browser-local-pdf-text', confidence: 0.68, text };
+  }
+
+  LOCAL_EXTRACTORS.pdf = browserLocalPdfTextExtractor;
 
   function parseLocalDocument(file, options = {}) {
     const ext = extensionFromName(file?.name);
@@ -610,8 +740,15 @@
       dataLeavesDeviceByDefault: false,
       generation: { mode: 'browser-only', output: ['UBL XML', 'CII XML', 'ZUGFeRD/Factur-X preparation package'] },
       ocr: {
-        mode: 'browser-local-engine',
-        activeWhen: 'A reviewed local PDF/OCR extractor is registered via registerLocalExtractor or XInvoiceLocalExtractors.',
+        mode: 'browser-local-engine-for-scans-or-documents',
+        activeWhen: 'A reviewed local OCR/DOC/DOCX extractor is registered via registerLocalExtractor or XInvoiceLocalExtractors. The built-in PDF path extracts simple embedded text only and is not OCR.',
+        builtInPdfTextExtraction: {
+          mode: 'simple-embedded-text-only',
+          method: 'browser-local-pdf-text',
+          requiresServer: false,
+          requiresHumanReview: true,
+          limitations: ['no OCR for scanned/image PDFs', 'no compressed PDF stream decoding in this minimal spike', 'suggestions only'],
+        },
         requiresHumanReview: true,
       },
       kosit: {
