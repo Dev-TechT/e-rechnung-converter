@@ -492,35 +492,86 @@
   function parseXmlFields(text) {
     const fields = {};
     const xml = String(text || '');
-    const valueOf = (localName) => {
-      const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${localName}[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${localName}>`, 'i');
-      const match = xml.match(pattern);
-      return match ? match[1].replace(/<[^>]+>/g, '').trim() : '';
+    const cleanText = (value) => String(value || '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .trim();
+    const tag = (localName) => String(localName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const valueOf = (localName, source = xml) => {
+      const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tag(localName)}\\b[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${tag(localName)}>`, 'i');
+      const match = String(source || '').match(pattern);
+      return match ? cleanText(match[1]) : '';
     };
-    const valueInside = (containerName, localName) => {
-      const openPattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${containerName}\\b[^>]*>`, 'i');
-      const open = xml.match(openPattern);
-      if (!open) return '';
-      const start = (open.index || 0) + open[0].length;
-      const afterOpen = xml.slice(start);
-      const closePattern = new RegExp(`</(?:[A-Za-z0-9_-]+:)?${containerName}>`, 'i');
-      const close = afterOpen.match(closePattern);
-      const container = close ? afterOpen.slice(0, close.index) : afterOpen;
-      const valuePattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${localName}\\b[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${localName}>`, 'i');
-      const match = container.match(valuePattern);
-      return match ? match[1].replace(/<[^>]+>/g, '').trim() : '';
+    const section = (containerName, source = xml) => {
+      const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tag(containerName)}\\b[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${tag(containerName)}>`, 'i');
+      return String(source || '').match(pattern)?.[1] || '';
     };
-    const firstOf = (...names) => names.map(valueOf).find(Boolean) || '';
-    const id = valueInside('ExchangedDocument', 'ID') || firstOf('ID', 'InvoiceNumber');
-    const buyerReference = firstOf('BuyerReference', 'BuyerReferenceBT10');
-    const issueDate = firstOf('IssueDate', 'DateTimeString');
-    const paymentIban = firstOf('IBANID', 'IBAN', 'PayeeAccountID');
-    const paymentTerms = firstOf('Note', 'PaymentTerms');
-    if (id) fields.invoiceNumber = id;
-    if (buyerReference) fields.buyerReference = buyerReference;
-    if (issueDate && /^\d{4}-\d{2}-\d{2}$/.test(issueDate)) fields.issueDate = issueDate;
-    if (paymentIban) fields.paymentIban = paymentIban;
-    if (paymentTerms) fields.paymentTerms = paymentTerms;
+    const attrOf = (localName, attrName, source = xml) => {
+      const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tag(localName)}\\b([^>]*)>`, 'i');
+      const attrs = String(source || '').match(pattern)?.[1] || '';
+      const attrPattern = new RegExp(`${tag(attrName)}\\s*=\\s*["']([^"']+)["']`, 'i');
+      return attrs.match(attrPattern)?.[1] || '';
+    };
+    const firstOf = (...names) => names.map((name) => valueOf(name)).find(Boolean) || '';
+    const dateFromXml = (value) => {
+      const raw = String(value || '').trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      if (/^\d{8}$/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+      return '';
+    };
+    const assign = (key, value) => {
+      const normalized = cleanText(value);
+      if (normalized && fields[key] == null) fields[key] = normalized;
+    };
+
+    const exchangedDocument = section('ExchangedDocument');
+    const supplierParty = section('AccountingSupplierParty') || section('SellerTradeParty');
+    const customerParty = section('AccountingCustomerParty') || section('BuyerTradeParty');
+    const supplierPostal = section('PostalAddress', supplierParty) || section('PostalTradeAddress', supplierParty);
+    const customerPostal = section('PostalAddress', customerParty) || section('PostalTradeAddress', customerParty);
+    const supplierContact = section('Contact', supplierParty) || section('DefinedTradeContact', supplierParty);
+    const firstUblLine = section('InvoiceLine') || section('CreditNoteLine');
+    const firstCiiLine = section('IncludedSupplyChainTradeLineItem');
+    const firstLine = firstUblLine || firstCiiLine;
+
+    assign('invoiceNumber', valueOf('ID', exchangedDocument) || firstOf('ID', 'InvoiceNumber'));
+    assign('issueDate', dateFromXml(firstOf('IssueDate', 'DateTimeString')));
+    assign('dueDate', dateFromXml(firstOf('DueDate')));
+    assign('currency', firstOf('DocumentCurrencyCode', 'InvoiceCurrencyCode'));
+    assign('buyerReference', firstOf('BuyerReference', 'BuyerReferenceBT10'));
+    assign('orderNumber', valueOf('ID', section('OrderReference')) || valueOf('IssuerAssignedID', section('BuyerOrderReferencedDocument')));
+    assign('paymentIban', firstOf('IBANID', 'IBAN', 'PayeeAccountID') || valueOf('ID', section('PayeeFinancialAccount')));
+    assign('paymentTerms', firstOf('Note', 'PaymentTerms') || valueOf('Description', section('SpecifiedTradePaymentTerms')));
+
+    assign('sellerName', valueOf('Name', supplierParty));
+    assign('sellerStreet', valueOf('StreetName', supplierPostal) || valueOf('LineOne', supplierPostal));
+    assign('sellerPostalCode', valueOf('PostalZone', supplierPostal) || valueOf('PostcodeCode', supplierPostal));
+    assign('sellerCity', valueOf('CityName', supplierPostal));
+    assign('sellerCountry', valueOf('IdentificationCode', section('Country', supplierPostal)) || valueOf('CountryID', supplierPostal));
+    assign('sellerEndpointId', valueOf('EndpointID', supplierParty) || valueOf('URIID', section('URIUniversalCommunication', supplierParty)) || valueOf('URIID', section('EmailURIUniversalCommunication', supplierParty)));
+    assign('sellerEndpointSchemeId', attrOf('EndpointID', 'schemeID', supplierParty) || attrOf('URIID', 'schemeID', section('URIUniversalCommunication', supplierParty)));
+    assign('sellerIdentifier', valueOf('ID', section('PartyIdentification', supplierParty)) || valueOf('ID', supplierParty));
+    assign('sellerVatId', valueOf('CompanyID', section('PartyTaxScheme', supplierParty)) || valueOf('ID', section('SpecifiedTaxRegistration', supplierParty)));
+    assign('sellerTelephone', valueOf('Telephone', supplierContact) || valueOf('CompleteNumber', supplierContact));
+
+    assign('buyerName', valueOf('Name', customerParty));
+    assign('buyerStreet', valueOf('StreetName', customerPostal) || valueOf('LineOne', customerPostal));
+    assign('buyerPostalCode', valueOf('PostalZone', customerPostal) || valueOf('PostcodeCode', customerPostal));
+    assign('buyerCity', valueOf('CityName', customerPostal));
+    assign('buyerCountry', valueOf('IdentificationCode', section('Country', customerPostal)) || valueOf('CountryID', customerPostal));
+    assign('buyerEndpointId', valueOf('EndpointID', customerParty) || valueOf('URIID', section('URIUniversalCommunication', customerParty)));
+    assign('buyerEndpointSchemeId', attrOf('EndpointID', 'schemeID', customerParty) || attrOf('URIID', 'schemeID', section('URIUniversalCommunication', customerParty)));
+
+    assign('lineDescription', valueOf('Name', section('Item', firstLine)) || valueOf('Name', section('SpecifiedTradeProduct', firstLine)) || valueOf('Description', firstLine));
+    assign('lineQuantity', valueOf('InvoicedQuantity', firstLine) || valueOf('BilledQuantity', firstLine));
+    assign('lineUnitCode', attrOf('InvoicedQuantity', 'unitCode', firstLine) || attrOf('BilledQuantity', 'unitCode', firstLine));
+    assign('lineNetPrice', valueOf('PriceAmount', section('Price', firstLine)) || valueOf('ChargeAmount', section('NetPriceProductTradePrice', firstLine)));
+    assign('lineTaxPercent', valueOf('Percent', section('ClassifiedTaxCategory', firstLine)) || valueOf('RateApplicablePercent', section('ApplicableTradeTax', firstLine)));
+
     return fields;
   }
 
@@ -579,6 +630,10 @@
     return Object.keys(fields || {}).length > 0;
   }
 
+  function buildFieldSources(fields, sourceLabel) {
+    return Object.fromEntries(Object.keys(fields || {}).map((key) => [key, sourceLabel]));
+  }
+
   function resultFromLocalExtraction(ext, extraction) {
     if (!extraction || extraction.ok === false) {
       return localExtractionFailure(extraction?.error || extraction?.message, {
@@ -589,18 +644,24 @@
       });
     }
     const text = String(extraction.text || '');
-    const fields = { ...(text ? fieldsFromDocumentText('txt', text) : {}), ...(extraction.fields || {}) };
+    const sourceExt = extraction.embeddedXml ? 'xml' : 'txt';
+    const parsedFromText = text ? fieldsFromDocumentText(sourceExt, text) : {};
+    const fields = { ...parsedFromText, ...(extraction.fields || {}) };
     if (!hasSuggestedFields(fields)) {
       return localExtractionFailure(
         extraction.message || 'Lokale PDF-Text-Extraktion hat keinen eingebetteten PDF-Text mit Rechnungsfeldern gefunden. Scan-/Bild-PDFs brauchen eine echte lokale OCR-Engine und Human Review.',
         { usedLocalExtractor: true, extractionMethod: extraction.method || `${ext}-local-extractor`, confidence: Math.min(extraction.confidence ?? 0.1, 0.2), requiresHumanReview: true }
       );
     }
+    const sourceLabel = extraction.embeddedXml
+      ? `PDF-Anhang ${extraction.embeddedXml.filename || 'XML'}`
+      : `${ext.toUpperCase()} lokale Texterkennung`;
     return {
       ok: true,
       errors: [],
       warnings: ['Lokale OCR/PDF-Erkennung liefert nur Vorschläge. Bitte alle Felder vor der Konvertierung prüfen.'],
       fields,
+      fieldSources: buildFieldSources(fields, sourceLabel),
       usedLocalExtractor: true,
       extractionMethod: extraction.method || `${ext}-local-extractor`,
       confidence: extraction.confidence,
@@ -940,16 +1001,31 @@
       return { ok: false, requiresServer: false, errors: ['Unbekannter Dateityp. Unterstützt im Browser: TXT, CSV, XML. PDF/DOC/DOCX brauchen eine lokale OCR/PDF-Engine oder Desktop/CLI-Extraktion.'], fields: {} };
     }
     const fields = fieldsFromDocumentText(ext, text);
-    return { ok: true, requiresServer: false, requiresHumanReview: true, errors: [], warnings: ['Automatisch erkannte Felder müssen vor der Konvertierung geprüft werden.'], fields };
+    return {
+      ok: true,
+      requiresServer: false,
+      requiresHumanReview: true,
+      errors: [],
+      warnings: ['Automatisch erkannte Felder müssen vor der Konvertierung geprüft werden.'],
+      fields,
+      fieldSources: buildFieldSources(fields, `${ext.toUpperCase()} lokale Dateierkennung`),
+    };
   }
 
   function getBrowserExecutionModel() {
     return {
       githubPages: 'static-hosting-only',
+      workflow: ['source-file', 'local-recognition', 'review-and-complete', 'browser-validation', 'export'],
       runsOnUserHardware: true,
       requiresApplicationServer: false,
       dataLeavesDeviceByDefault: false,
+      review: {
+        required: true,
+        fieldSources: true,
+        pattern: 'PDF24/invoice-converter-style upload-extract-review-export funnel, implemented local-first without cloud AI or uploads',
+      },
       generation: { mode: 'browser-only', output: ['UBL XML', 'CII XML', 'ZUGFeRD/Factur-X preparation package'] },
+      validation: getBrowserValidationStrategy(),
       ocr: {
         mode: 'browser-local-engine-for-scans-or-documents',
         activeWhen: 'A reviewed local OCR/DOC/DOCX extractor is registered via registerLocalExtractor or XInvoiceLocalExtractors. The built-in PDF path extracts embedded XML first, then simple embedded text; it is not OCR.',
@@ -1026,15 +1102,67 @@
     };
   }
 
-  function applyParsedFields(document, fields) {
+  function renderExtractionReview(document, report) {
+    const panel = document.getElementById('extractionReview');
+    const summary = document.getElementById('extractionSummary');
+    const list = document.getElementById('recognizedFieldList');
+    if (!panel || !summary || !list) return;
+    panel.hidden = false;
+    list.textContent = '';
+    const filled = report.filled || [];
+    const missingRequired = report.missingRequired || [];
+    summary.className = missingRequired.length ? 'helper extraction-warning' : 'helper extraction-ok';
+    summary.textContent = `${filled.length} Felder automatisch vorgeschlagen. ${missingRequired.length ? `${missingRequired.length} Pflichtfelder fehlen noch.` : 'Alle aktuell markierten Pflichtfelder sind gefüllt.'} Bitte alles prüfen.`;
+    for (const item of filled) {
+      const row = document.createElement('div');
+      row.className = 'recognized-field';
+      const label = document.createElement('strong');
+      label.textContent = item.label || item.id;
+      const value = document.createElement('span');
+      value.textContent = item.value;
+      const source = document.createElement('small');
+      source.textContent = `Quelle: ${item.source || 'lokale Erkennung'}`;
+      row.appendChild(label);
+      row.appendChild(value);
+      row.appendChild(source);
+      list.appendChild(row);
+    }
+    for (const id of missingRequired) {
+      const field = REQUIRED_FIELDS.find((candidate) => candidate.id === id);
+      const row = document.createElement('div');
+      row.className = 'recognized-field missing';
+      const label = document.createElement('strong');
+      label.textContent = field?.label || id;
+      const value = document.createElement('span');
+      value.textContent = 'fehlt noch';
+      row.appendChild(label);
+      row.appendChild(value);
+      list.appendChild(row);
+    }
+  }
+
+  function applyParsedFields(document, fields, fieldSources = {}) {
     const assignments = {
-      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerEndpointId: 'sellerEndpointId', sellerIdentifier: 'sellerIdentifier', sellerTelephone: 'sellerTelephone', buyerName: 'buyerName', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineNetPrice: 'lineNetPrice',
+      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', currency: 'currency', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerStreet: 'sellerStreet', sellerPostalCode: 'sellerPostalCode', sellerCity: 'sellerCity', sellerCountry: 'sellerCountry', sellerVatId: 'sellerVatId', sellerEndpointId: 'sellerEndpointId', sellerEndpointSchemeId: 'sellerEndpointSchemeId', sellerIdentifier: 'sellerIdentifier', sellerTelephone: 'sellerTelephone', buyerName: 'buyerName', buyerStreet: 'buyerStreet', buyerPostalCode: 'buyerPostalCode', buyerCity: 'buyerCity', buyerCountry: 'buyerCountry', buyerEndpointId: 'buyerEndpointId', buyerEndpointSchemeId: 'buyerEndpointSchemeId', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineUnitCode: 'lineUnitCode', lineNetPrice: 'lineNetPrice', lineTaxPercent: 'lineTaxPercent',
     };
+    const labels = Object.fromEntries([...getFormFieldBindings(), ...REQUIRED_FIELDS].map((field) => [field.id, field.catalogName || field.label || field.id]));
+    const filled = [];
     for (const [key, id] of Object.entries(assignments)) {
       if (!fields[key]) continue;
       const input = document.getElementById(id);
-      if (input) input.value = fields[key];
+      if (input) {
+        input.value = fields[key];
+        input.dataset.source = fieldSources[key] || 'lokale Erkennung';
+        input.classList?.add?.('auto-filled');
+        filled.push({ id, key, label: labels[id] || id, value: String(fields[key]), source: fieldSources[key] || 'lokale Erkennung' });
+      }
     }
+    const missingRequired = REQUIRED_FIELDS
+      .map((field) => field.id)
+      .filter((id) => !String(document.getElementById(id)?.value || '').trim());
+    const report = { filled, missingRequired };
+    renderExtractionReview(document, report);
+    return report;
   }
 
   function validationPlan(formatId) {
@@ -1200,9 +1328,10 @@
         if (!selected) return;
         const ext = extensionFromName(selected.name);
         const handleParsed = (parsed) => {
-          if (parsed.ok) applyParsedFields(document, parsed.fields);
+          if (parsed.ok) applyParsedFields(document, parsed.fields, parsed.fieldSources || {});
+          const filledCount = parsed.ok ? Object.keys(parsed.fields || {}).length : 0;
           showResult(document, parsed.ok
-            ? { ok: true, warnings: parsed.warnings, message: `Lokale Datei gelesen: ${selected.name}. Bitte erkannte Felder prüfen.` }
+            ? { ok: true, warnings: parsed.warnings, message: `Lokale Datei gelesen: ${selected.name}. ${filledCount} Felder automatisch vorgeschlagen; bitte Feldquellen prüfen und fehlende Pflichtfelder ergänzen.` }
             : parsed);
         };
         const handleMaybeAsync = (parsed) => {
@@ -1248,5 +1377,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, convertForAgent, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

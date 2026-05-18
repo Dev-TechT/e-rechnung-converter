@@ -67,8 +67,18 @@
           <h3>Dokument</h3>
           <label class="dropzone">Rechnung lokal auswählen
             <input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xml,application/pdf,text/plain,text/csv,application/xml,text/xml">
-            <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet.</span>
+            <span>PDF, DOC, DOCX, TXT, CSV oder XML. Keine Datei wird an einen Server gesendet. Die Verarbeitung startet automatisch nach der Auswahl.</span>
           </label>
+          <ol class="workflow-steps" aria-label="Lokaler Arbeitsablauf">
+            <li><strong>Datei</strong><span>PDF auswählen → Felder lokal vorschlagen → prüfen → validieren → exportieren</span></li>
+            <li><strong>Erkennung</strong><span>XML zuerst, dann eingebetteter PDF-Text; keine Cloud-AI-Erkennung.</span></li>
+            <li><strong>Review</strong><span>Jedes erkannte Feld zeigt seine Quelle und bleibt prüfpflichtig.</span></li>
+          </ol>
+          <div id="extractionReview" class="extraction-review" hidden>
+            <h3>Erkannte Felder</h3>
+            <p id="extractionSummary" class="helper">Noch keine Datei ausgewählt.</p>
+            <div id="recognizedFieldList" class="recognized-field-list" aria-live="polite"></div>
+          </div>
           <div class="mini-note">PDF: eingebettetes Factur-X/ZUGFeRD/XRechnung-XML wird lokal zuerst gesucht und als Vorschlag ins Formular übertragen. Wenn kein Rechnungs-XML gefunden wird, liest der Browser einfachen eingebetteten PDF-Text. Scan-/Bild-PDFs sind keine OCR und bleiben low-confidence/review-required. DOC/DOCX brauchen weiter eine geprüfte lokale Engine oder Desktop/CLI-Extraktion.</div>
 
           <div class="mini-note"><strong>Großes Formular als Ziel:</strong> Alle XRechnung-BT/BG-Felder sollen als Produktformular abbildbar werden. Der Ausbau erfolgt in Gruppen: Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert. Grundlage ist das offizielle <code>xrechnung-3.0.2-bundle-2026-01-31.zip</code>.</div>
@@ -91,7 +101,7 @@
           <p class="helper"><strong>Was bedeutet *?</strong> Mit * markierte Felder sind Pflichtfelder. Sie blockieren die Konvertierung, wenn sie fehlen. Beispielwerte sind Platzhalter; echte Werte beim Rechnungsempfänger prüfen.</p>
 
           <fieldset>
-            <legend>Rechnung</legend>
+            <legend>Standardfelder</legend>
             <div class="grid four">
               <label><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceNumber" data-bt="BT-1" data-bg="INVOICE" value="RE-2025-0001" required></label>
               <label><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="issueDate" data-bt="BT-2" data-bg="INVOICE" type="date" value="2025-01-15" required></label>
@@ -145,6 +155,14 @@
           </fieldset>
 
           <p class="helper">Die XRechnung-BT/BG-Zuordnung steckt im Hintergrund an den Formularfeldern. Nutzer füllen weiterhin das Formular aus; Agenten und Tests können die Feldmetadaten maschinenlesbar verwenden.</p>
+
+          <details class="advanced-fields">
+            <summary>Weitere XRechnung-Felder</summary>
+            <p class="helper">Der vollständige XRechnung-Katalog ist im Browser als Metadaten geladen. Diese Produktansicht zeigt zuerst Pflicht- und Problemfelder; zusätzliche Gruppen wie Referenzen, Parteien erweitert, Lieferung, Steuern, Zu-/Abschläge, Zahlung, Anhänge und Positionen erweitert werden schrittweise als echte Formularabschnitte ausgebaut. Bis Export/KoSIT-Parität für eine Gruppe existiert, bleibt sie catalog-first statt scheinbar vollständig.</p>
+          </details>
+
+          <h3>Validierung & Export</h3>
+          <p class="helper">Browser-Sanity läuft sofort. Offizielle Einreichungsclaims brauchen weiterhin lokalen KoSIT/Mustang/veraPDF-PASS für genau dieses Artefakt.</p>
 
           <button type="submit" class="button primary wide">Artefakt lokal erzeugen und prüfen</button>
           <pre id="result" class="result" hidden></pre>

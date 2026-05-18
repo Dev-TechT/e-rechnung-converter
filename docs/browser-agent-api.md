@@ -77,6 +77,19 @@ The shipped browser runtime now includes a minimal `browser-local-pdf-embedded-x
 
 The PDF.js candidate facts above remain useful for a later stronger engine, but the current shipped extractor is intentionally smaller than a bundled PDF.js runtime so the privacy scan can stay strict.
 
+## Local review funnel
+
+PDF24 and invoice-converter.com use the familiar pattern “upload/select invoice -> automatic extraction -> review -> choose e-invoice format -> validate/export”. This app mirrors that understandable flow but keeps the local-first boundary stricter:
+
+Datei auswählen → lokale Erkennung → prüfen und ergänzen → Browser-Validierung → Export
+
+- The `#sourceFile` change handler starts automatically after selection.
+- Embedded XRechnung/ZUGFeRD/Factur-X XML is preferred before PDF text extraction.
+- TXT/CSV/XML fields and simple PDF text fields are suggestions, not truth.
+- Every auto-filled form control receives field source metadata (`data-source`) and the review panel shows the Feldquelle.
+- There is keine Cloud-AI-Erkennung, no upload and no server-side extraction in the default flow.
+- Missing required fields remain visible blockers before artifact generation.
+
 ## Agent usage
 
 In the browser console or another browser automation agent:

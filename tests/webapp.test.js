@@ -218,6 +218,146 @@ test('local document intake parses csv txt and xml snippets without network', ()
   assert(parsed.fields.invoiceNumber === 'RE-3', 'xml invoice number missing');
 });
 
+test('local XML intake auto-detects generated UBL fields for sourceFile autofill review', () => {
+  const artifact = app.generateInvoice(sampleInvoice(), 'xrechnung-ubl');
+  const parsed = app.parseLocalDocument({ name: artifact.filename, type: 'application/xml', text: artifact.content });
+  assert(parsed.ok === true, 'generated UBL XML should parse as local source file');
+  for (const [key, expected] of Object.entries({
+    invoiceNumber: 'RE-2025-0001',
+    issueDate: '2025-01-15',
+    dueDate: '2025-02-01',
+    currency: 'EUR',
+    buyerReference: 'DEMO-LEITWEG-001',
+    orderNumber: 'DEMO-ORDER-001',
+    paymentIban: 'DE00DEMO00000000000000',
+    paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
+    sellerName: 'Demo Lieferant GmbH',
+    sellerStreet: 'Hauptstr. 1',
+    sellerPostalCode: '10115',
+    sellerCity: 'Berlin',
+    sellerCountry: 'DE',
+    sellerEndpointId: 'seller@example.invalid',
+    sellerIdentifier: 'DEMO-SELLER-ID',
+    sellerTelephone: '+49 30 123456',
+    buyerName: 'Demo Empfänger',
+    buyerStreet: 'Empfängerweg 1',
+    buyerPostalCode: '00000',
+    buyerCity: 'Demostadt',
+    buyerCountry: 'DE',
+    lineDescription: 'Beratungsleistung',
+    lineQuantity: '2',
+    lineUnitCode: 'HUR',
+    lineNetPrice: '100.00',
+    lineTaxPercent: '19.00',
+  })) {
+    assert(parsed.fields[key] === expected, `${key} should autofill from XML source file, got ${parsed.fields[key]}`);
+  }
+  assert(parsed.fieldSources.invoiceNumber.includes('XML'), 'field source metadata should explain XML detection');
+  assert(parsed.requiresHumanReview === true, 'auto-detected XML fields must still require review');
+});
+
+test('local CII XML intake auto-detects generated fields for sourceFile autofill review', () => {
+  const artifact = app.generateInvoice(sampleInvoice(), 'xrechnung-cii');
+  const parsed = app.parseLocalDocument({ name: artifact.filename, type: 'application/xml', text: artifact.content });
+  assert(parsed.ok === true, 'generated CII XML should parse as local source file');
+  assert(parsed.fields.invoiceNumber === 'RE-2025-0001', 'CII invoice number missing');
+  assert(parsed.fields.issueDate === '2025-01-15', 'CII issue date missing');
+  assert(parsed.fields.buyerReference === 'DEMO-LEITWEG-001', 'CII buyer reference missing');
+  assert(parsed.fields.orderNumber === 'DEMO-ORDER-001', 'CII order number missing');
+  assert(parsed.fields.paymentIban === 'DE00DEMO00000000000000', 'CII IBAN missing');
+  assert(parsed.fields.sellerName === 'Demo Lieferant GmbH', 'CII seller name missing');
+  assert(parsed.fields.sellerTelephone === '+49 30 123456', 'CII seller telephone missing');
+  assert(parsed.fields.buyerName === 'Demo Empfänger', 'CII buyer name missing');
+  assert(parsed.fields.lineDescription === 'Beratungsleistung', 'CII line description missing');
+  assert(parsed.fields.lineQuantity === '2', 'CII line quantity missing');
+  assert(parsed.fields.lineNetPrice === '100.00', 'CII line net price missing');
+  assert(parsed.fieldSources.invoiceNumber.includes('XML'), 'CII field source metadata should explain XML detection');
+});
+
+test('sourceFile review UI exposes automatic recognition status and field-level sources', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  for (const needle of [
+    'id="extractionReview"',
+    'Die Verarbeitung startet automatisch',
+    'id="recognizedFieldList"',
+    'Erkannte Felder',
+    'PDF auswählen → Felder lokal vorschlagen → prüfen → validieren → exportieren',
+    'Standardfelder',
+    'Weitere XRechnung-Felder',
+    'Validierung & Export',
+  ]) {
+    assert(html.includes(needle), `missing sourceFile review UI copy: ${needle}`);
+  }
+});
+
+test('sourceFile applyParsedFields reports filled and missing required fields with sources', () => {
+  const values = new Map();
+  const inputs = new Map();
+  const makeInput = (id) => {
+    const input = { dataset: {}, classList: { add() {} } };
+    Object.defineProperty(input, 'value', {
+      get() { return values.get(id) || ''; },
+      set(value) { values.set(id, value); },
+    });
+    return input;
+  };
+  const fieldList = { children: [], appendChild(node) { this.children.push(node); }, textContent: '' };
+  const review = { hidden: true };
+  const summary = { textContent: '', className: '' };
+  const makeNode = (tag) => ({ tag, children: [], className: '', textContent: '', dataset: {}, appendChild(node) { this.children.push(node); }, setAttribute() {} });
+  const document = {
+    getElementById(id) {
+      if (id === 'recognizedFieldList') return fieldList;
+      if (id === 'extractionReview') return review;
+      if (id === 'extractionSummary') return summary;
+      if (['invoiceNumber', 'buyerReference', 'sellerName'].includes(id) || app.getRequiredFields().some((field) => field.id === id)) {
+        if (!inputs.has(id)) inputs.set(id, makeInput(id));
+        return inputs.get(id);
+      }
+      return null;
+    },
+    createElement: makeNode,
+  };
+  const report = app.applyParsedFields(document, {
+    invoiceNumber: 'RE-SRC-1',
+    buyerReference: 'LW-SRC-1',
+    sellerName: 'Quelle GmbH',
+  }, {
+    invoiceNumber: 'XML lokale Dateierkennung',
+    buyerReference: 'XML lokale Dateierkennung',
+    sellerName: 'XML lokale Dateierkennung',
+  });
+  assert(report.filled.length === 3, 'expected three filled fields');
+  assert(report.missingRequired.includes('paymentIban'), 'missing required IBAN should be reported');
+  assert(values.get('invoiceNumber') === 'RE-SRC-1', 'invoiceNumber should be written to DOM');
+  assert(review.hidden === false, 'review panel should become visible');
+  assert(summary.textContent.includes('3 Felder'), 'summary should mention filled count');
+  assert(fieldList.children.length >= 3, 'field list should render recognized field rows');
+});
+
+test('browser execution model mirrors competitor-style review funnel while keeping local-first boundary', () => {
+  const model = app.getBrowserExecutionModel();
+  assert(model.workflow.join(' → ') === 'source-file → local-recognition → review-and-complete → browser-validation → export', 'workflow should expose upload/extract/review/validate/export funnel');
+  assert(model.dataLeavesDeviceByDefault === false, 'workflow should remain local-first');
+  assert(model.review.required === true, 'auto-filled fields should require review');
+  assert(model.review.fieldSources === true, 'review should expose field sources');
+  assert(model.validation.browserNativePipeline.steps.includes('xsd-wasm'), 'browser-native validator plan should include XSD/WASM');
+  assert(model.validation.browserNativePipeline.steps.includes('schematron-xslt'), 'browser-native validator plan should include Schematron/XSLT');
+});
+
+test('docs explain PDF24 and invoice-converter inspired local review funnel', () => {
+  const docs = fs.readFileSync(path.join(__dirname, '..', 'docs', 'browser-agent-api.md'), 'utf8');
+  for (const needle of [
+    'PDF24',
+    'invoice-converter.com',
+    'Datei auswählen → lokale Erkennung → prüfen und ergänzen → Browser-Validierung → Export',
+    'keine Cloud-AI-Erkennung',
+    'Feldquelle',
+  ]) {
+    assert(docs.includes(needle), `missing competitor/review funnel note: ${needle}`);
+  }
+});
+
 test('local document intake is honest about doc/docx needing a browser-local extraction engine', () => {
   for (const name of ['invoice.doc', 'invoice.docx']) {
     const parsed = app.parseLocalDocument({ name, type: 'application/octet-stream', text: '' });
