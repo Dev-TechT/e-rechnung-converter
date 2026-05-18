@@ -7,6 +7,7 @@ name = "xrechnung-converter"
 version = "0.1.0"
 description = "Local-first invoice to XRechnung candidate XML converter"
 requires-python = ">=3.11"
+license = "MIT"
 dependencies = []
 
 [project.optional-dependencies]
