@@ -1354,6 +1354,38 @@
     return { ok: errors.length === 0, errors, normalized };
   }
 
+  function buildHermesFieldFillPrompt(payload) {
+    const promptPayload = cloneJson(payload || {});
+    if (promptPayload.connectionPolicy) delete promptPayload.connectionPolicy.forbiddenModes;
+    return [
+      'Hermes Aufgabe: Fülle fehlende E-Rechnung/XRechnung-Felder als prüfbare Vorschläge.',
+      '',
+      'Gib ausschließlich JSON zurück. Kein Markdown, keine Erklärung außerhalb des JSON.',
+      'Erfinde keine Werte. Wenn ein Feld nicht aus der Quelle bestimmbar ist, nutze cannotDetermine.',
+      'Jeder Feldvorschlag braucht value, source, confidence (0..1) und reviewRequired.',
+      '',
+      'REQUEST_JSON:',
+      JSON.stringify(promptPayload, null, 2),
+      '',
+      'RESPONSE_JSON_SCHEMA:',
+      JSON.stringify(getAgentFieldFillSchema().responseContract, null, 2),
+    ].join('\n');
+  }
+
+  function importAgentFieldFillResponse(document, response) {
+    const validation = validateAgentFieldFillResponse(response);
+    if (!validation.ok) return { ok: false, errors: validation.errors, validation };
+    const fields = {};
+    const fieldSources = {};
+    for (const [field, candidate] of Object.entries(validation.normalized.fields)) {
+      fields[field] = candidate.value;
+      fieldSources[field] = `Hermes: ${candidate.source} (Confidence ${Math.round(candidate.confidence * 100)}%)`;
+    }
+    const report = applyParsedFields(document, fields, fieldSources);
+    report.missingRequired = Array.from(new Set([...(report.missingRequired || []), ...validation.normalized.missingRequired]));
+    return { ok: true, errors: [], validation, report };
+  }
+
   function collectInvoiceFromDom(document) {
     const value = (id) => document.getElementById(id)?.value?.trim() || '';
     return {
@@ -1432,6 +1464,42 @@
     formatSelect.addEventListener('change', renderPlan);
     renderPlan();
 
+    const promptButton = document.getElementById('copyHermesPrompt');
+    const promptBox = document.getElementById('agentPrompt');
+    const responseBox = document.getElementById('agentResponseJson');
+    const importButton = document.getElementById('importAgentResponse');
+    if (promptButton && promptBox) {
+      promptButton.addEventListener('click', () => {
+        const request = buildAgentFieldFillRequest({
+          targetFormat: formatSelect.value,
+          documentKind: 'manual',
+          sourceText: '',
+          existingFields: collectInvoiceFromDom(document),
+          transport: 'hermes-copy-paste',
+        });
+        if (!request.ok) {
+          showResult(document, request);
+          return;
+        }
+        promptBox.value = buildHermesFieldFillPrompt(request.payload);
+        showResult(document, { ok: true, message: 'Hermes Prompt erzeugt. An Hermes senden und JSON-Antwort unten importieren.' });
+      });
+    }
+    if (importButton && responseBox) {
+      importButton.addEventListener('click', () => {
+        let parsed;
+        try { parsed = JSON.parse(responseBox.value || '{}'); }
+        catch (error) {
+          showResult(document, { ok: false, errors: [`Hermes JSON-Antwort konnte nicht gelesen werden: ${error.message}`] });
+          return;
+        }
+        const imported = importAgentFieldFillResponse(document, parsed);
+        showResult(document, imported.ok
+          ? { ok: true, warnings: imported.validation.normalized.warnings, message: `Hermes Vorschläge importiert: ${imported.report.filled.length} Felder; ${imported.report.missingRequired.length} Pflichtfelder offen.` }
+          : imported);
+      });
+    }
+
     if (sourceFile) {
       sourceFile.addEventListener('change', () => {
         const selected = sourceFile.files && sourceFile.files[0];
@@ -1487,5 +1555,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, getAgentFieldFillSchema, buildAgentFieldFillRequest, validateAgentFieldFillResponse, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, getAgentFieldFillSchema, buildAgentFieldFillRequest, validateAgentFieldFillResponse, buildHermesFieldFillPrompt, importAgentFieldFillResponse, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

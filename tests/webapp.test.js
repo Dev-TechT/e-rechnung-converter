@@ -1014,6 +1014,61 @@ test('AI field-fill documentation records Hermes/local bridge and secure inbox-o
   assert(!/Browser-BYOK|Bring your own key|API-Key im Browser/i.test(doc), 'documentation must not propose browser API keys');
 });
 
+test('Hermes prompt export/import UI is present without network or API-key controls', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  for (const needle of ['id="agentPrompt"', 'id="copyHermesPrompt"', 'id="agentResponseJson"', 'id="importAgentResponse"', 'Hermes Prompt erzeugen', 'Hermes JSON-Antwort importieren']) {
+    assert(html.includes(needle), `missing Hermes prompt/import UI: ${needle}`);
+  }
+  assert(!/apiKey|API-Key eingeben|provider url|Bearer/i.test(html), 'UI must not ask for browser API keys or bearer tokens');
+});
+
+test('Hermes prompt builder wraps field-fill request with strict JSON-only instructions', () => {
+  const request = app.buildAgentFieldFillRequest({
+    targetFormat: 'xrechnung-ubl',
+    documentKind: 'txt',
+    sourceText: 'Rechnung RE-1 Leitweg-ID LW-1',
+    existingFields: { invoiceNumber: 'RE-1' },
+  });
+  const prompt = app.buildHermesFieldFillPrompt(request.payload);
+  assert(prompt.includes('Hermes'), 'prompt should name Hermes');
+  assert(prompt.includes('Gib ausschließlich JSON zurück'), 'prompt should require JSON-only output');
+  assert(prompt.includes('fill_xrechnung_invoice_fields'), 'prompt should include task');
+  assert(prompt.includes('doNotInvent'), 'prompt should include anti-invention rule');
+  assert(prompt.includes('noApiKeyInBrowser'), 'prompt should preserve connection policy');
+  assert(!/Browser-BYOK|Bring your own key|API-Key im Browser/i.test(prompt), 'prompt must not mention browser API-key workflow');
+});
+
+test('Hermes JSON import validates and applies grounded suggestions as review fields', () => {
+  const inputs = new Map();
+  const makeInput = () => ({ value: '', dataset: {}, classList: { add(name) { this.added = name; } } });
+  for (const id of ['invoiceNumber', 'buyerReference', 'sellerTelephone']) inputs.set(id, makeInput());
+  const review = { hidden: true, className: '', appendChild() {}, innerHTML: '' };
+  const document = {
+    getElementById(id) {
+      if (inputs.has(id)) return inputs.get(id);
+      if (id === 'extractionReview' || id === 'recognizedFieldList') return review;
+      if (id === 'extractionSummary') return { textContent: '' };
+      return null;
+    },
+    createElement() { return { appendChild() {}, className: '', textContent: '' }; },
+  };
+  const response = {
+    ok: true,
+    fields: {
+      invoiceNumber: { value: 'RE-1', confidence: 0.99, source: 'Rechnung RE-1', reviewRequired: false },
+      buyerReference: { value: 'LW-1', confidence: 0.9, source: 'Leitweg-ID LW-1', reviewRequired: true },
+    },
+    missingRequired: ['sellerTelephone'],
+    warnings: [],
+    cannotDetermine: [{ field: 'sellerTelephone', reason: 'Nicht gefunden' }],
+  };
+  const result = app.importAgentFieldFillResponse(document, response);
+  assert(result.ok === true, 'grounded Hermes response should import');
+  assert(inputs.get('invoiceNumber').value === 'RE-1', 'invoice number should be applied');
+  assert(inputs.get('buyerReference').dataset.source.includes('Rechnung RE-1') || inputs.get('buyerReference').dataset.source.includes('Leitweg-ID LW-1'), 'field source should be preserved');
+  assert(result.report.missingRequired.includes('sellerTelephone'), 'missing required field should remain visible');
+});
+
 test('responsive type scale keeps hero and privacy copy compact', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
   assert(css.includes('h1 { font-size: clamp(2.15rem, 4.8vw, 4.9rem)'), 'h1 type scale should be reduced');

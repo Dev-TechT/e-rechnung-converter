@@ -83,6 +83,15 @@
 
           <div class="mini-note"><strong>Großes Formular als Ziel:</strong> Alle XRechnung-BT/BG-Felder sollen als Produktformular abbildbar werden. Der Ausbau erfolgt in Gruppen: Referenzen, Parteien, Lieferung, Steuern, Zu-/Abschläge, Anhänge und Positionen erweitert. Grundlage ist das offizielle <code>xrechnung-3.0.2-bundle-2026-01-31.zip</code>.</div>
 
+          <div class="agent-card" aria-label="Hermes Agent Feldbefüllung">
+            <h3>Hermes Feldbefüllung</h3>
+            <p class="helper">Ohne Frontend-Secret: Prompt erzeugen, an Hermes geben, JSON-Antwort hier importieren. Alle Vorschläge bleiben prüfpflichtig.</p>
+            <button type="button" id="copyHermesPrompt" class="button secondary wide">Hermes Prompt erzeugen</button>
+            <label><span class="label-text">Hermes Prompt</span> <textarea id="agentPrompt" rows="8" readonly placeholder="Hier erscheint der Copy/Paste-Prompt für Hermes."></textarea></label>
+            <label><span class="label-text">Hermes JSON-Antwort</span> <textarea id="agentResponseJson" rows="8" placeholder="Hermes JSON-Antwort hier einfügen."></textarea></label>
+            <button type="button" id="importAgentResponse" class="button secondary wide">Hermes JSON-Antwort importieren</button>
+          </div>
+
           <h3>Zielformat</h3>
           <label><span class="label-text">Format</span> <select id="format">
               <option value="xrechnung-ubl">XRechnung UBL XML</option>
