@@ -9,6 +9,7 @@ Ziel: Ein AI-Agent wie Hermes soll Rechnungsquellen analysieren und XRechnung-/E
 - Keine Frontend-Secret-Lösung.
 - Keine automatische finale Rechnung durch AI.
 - Jeder Vorschlag braucht Wert, Quelle/Zitat, Confidence und Review-Status.
+- Der Request enthält für jedes bekannte Feld Zweck, BT/BG-Zuordnung, Pflicht-/Empfehlungsstatus und konkrete Ausfüllhilfe; Agenten müssen diese Hilfen beachten.
 - Wenn ein Wert nicht sicher aus der Quelle bestimmbar ist, muss der Agent `cannotDetermine` liefern.
 
 ## Unterstützte Verbindungsmodi
@@ -65,6 +66,7 @@ Mögliche Transportvarianten:
   "existingFields": {},
   "requiredFields": [],
   "fieldCatalog": [],
+  "recommendedFields": [],
   "rules": {
     "doNotInvent": true,
     "returnOnlyJson": true,

@@ -36,7 +36,7 @@
     ]),
     requestContract: Object.freeze({
       task: 'fill_xrechnung_invoice_fields',
-      requiredTopLevelKeys: Object.freeze(['task', 'locale', 'targetFormat', 'documentKind', 'sourceText', 'existingFields', 'requiredFields', 'fieldCatalog', 'rules', 'connectionPolicy']),
+      requiredTopLevelKeys: Object.freeze(['task', 'locale', 'targetFormat', 'documentKind', 'sourceText', 'existingFields', 'requiredFields', 'recommendedFields', 'fieldCatalog', 'rules', 'connectionPolicy']),
     }),
     responseContract: Object.freeze({
       requiredTopLevelKeys: Object.freeze(['ok', 'fields', 'missingRequired', 'warnings', 'cannotDetermine']),

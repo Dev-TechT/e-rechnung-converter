@@ -88,7 +88,10 @@
     "docs/ai-agent-fieldfill.md documenting local Hermes bridge and secure IMAP/WebDAV/Gateway-style inbox/outbox options",
     "Hermes copy/paste prompt export UI with no frontend secrets or network calls",
     "Hermes JSON response import UI that validates grounded suggestions before applying review-required fields",
-    "machine-readable buildHermesFieldFillPrompt and importAgentFieldFillResponse helpers"
+    "machine-readable buildHermesFieldFillPrompt and importAgentFieldFillResponse helpers",
+    "expanded browser required/recommended field policy from official XRechnung CIUS model and E-Rechnung Bund §5 E-RechV guidance",
+    "field-level human/agent help metadata with purpose, fill instructions, official source and hidden (i) info popovers",
+    "AI field-fill requests now include required and recommended field guidance so agents know what to extract and when not to invent values"
   ],
   "verified_commands": [
     "node tests/webapp.test.js -> 52 ok checks",
@@ -96,26 +99,34 @@
     "runtime privacy scan over web HTML/JS -> ok",
     "redacted private-sample PDF smoke -> fail-closed after strict parser hardening, no server, no field values printed",
     "node tests/webapp.test.js -> ok including AI field-fill schema/no-API-key checks",
-    "node tests/webapp.test.js -> ok including Hermes prompt export/import checks"
+    "node tests/webapp.test.js -> ok including Hermes prompt export/import checks",
+    "node tests/webapp.test.js -> ok including expanded field guidance and (i) help popovers"
   ],
-  "next_task": "Build Phase 3: local Hermes bridge prototype on localhost, keeping API keys out of the browser and enforcing the same JSON schema/response validator.",
+  "next_task": "Build Phase 3: local Hermes bridge prototype on localhost, keeping API keys out of the browser and enforcing the same JSON schema/response validator; then map more advanced BT/BG groups into generator round-trip tests.",
   "required_field_policy": [
-    "Leitweg-ID / BuyerReference",
-    "Bank details / IBAN",
-    "Payment terms",
-    "Invoice issuer email / endpoint ID",
-    "Invoice issuer telephone for seller contact",
-    "Seller identifier",
-    "Purchase order reference / order number",
-    "Invoice metadata and line data"
+    "Rechnungsnummer BT-1, Rechnungsdatum BT-2, Rechnungsart-Code BT-3, Währung BT-5",
+    "Leitweg-ID / BuyerReference BT-10",
+    "Bestell-/Auftragsnummer BT-13 sofern vom Auftraggeber übermittelt",
+    "Zahlungsziel/Zahlungsbedingungen BT-9/BT-20",
+    "Seller Name/Identifier/Endpoint/Kontakt: BT-27, BT-29, BT-34, BT-42, BT-43",
+    "Seller postal basics: BT-38, BT-37, BT-40",
+    "Buyer Name/Endpoint/postal basics: BT-44, BT-49, BT-53, BT-52, BT-55",
+    "Zahlungsart und IBAN: BT-81, BT-84",
+    "Positionsdaten: BT-126, BT-129, BT-130, BT-153, BT-146"
   ],
   "current_limits": [
     "CLI xrechnung-ubl now has a minimal JSON example that passes local KoSIT validation, but broader field coverage still needs iterative hardening.",
     "Browser app runs generation, PDF embedded invoice XML/text extraction and sanity validation on the user hardware, but does not yet ship official KoSIT as a pure Browser/WebAssembly runtime; official validation still uses local CLI/native validator artifacts.",
     "Browser PDF extraction is suggestions-only and intentionally fail-closed: it reads simple uncompressed embedded Factur-X/ZUGFeRD/XRechnung XML only when attachment structure is safely recognized, plus simple embedded PDF text. It does not handle scan/image OCR, compressed/object-stream attachment structures, or ambiguous indirect stream boundaries; DOC/DOCX still need a separate local engine or Desktop/CLI path and every extracted field stays human-review-gated.",
     "Browser validation currently provides structured local sanity reports, not official KoSIT PASS. The next browser-validator step is XSD/WASM + Schematron/XSLT + Codelists with KoSIT CLI parity corpus.",
-    "The browser field catalog is background metadata for existing form fields, not a visible user-facing list; broader advanced fields still need proper grouped form controls plus generator/export round-trip tests before being presented as supported.",
-    "AI field-fill schema is defined for Hermes-compatible/no-API-key workflows, but prompt export/import UI and local Hermes bridge are not implemented yet.",
+    "The browser field catalog plus field-help metadata covers current required/recommended fields with hidden (i) popovers; broader advanced BT/BG groups still need grouped form controls plus generator/export round-trip tests before being presented as supported.",
     "Hermes prompt export/import is implemented; local Hermes bridge and secure online inbox/outbox transport are still pending."
+  ],
+  "recommended_field_policy": [
+    "Leistungs-/Lieferdatum BT-72 when present",
+    "Kontoinhaber/BIC BT-85/BT-86 when available",
+    "Seller VAT ID BT-31 when available",
+    "Address line fields BT-35/BT-50 when available",
+    "Position VAT rate BT-152 when available"
   ]
 }

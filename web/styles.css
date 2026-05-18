@@ -88,7 +88,11 @@ legend { font-weight: 900; margin-bottom: 10px; font-size: 1.05rem; }
 .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 label { display: grid; gap: 7px; color: #526058; font-size: .9rem; font-weight: 700; }
-.label-text { display: inline-flex; align-items: baseline; gap: 2px; line-height: 1.25; }
+.label-text { display: inline-flex; align-items: baseline; gap: 4px; line-height: 1.25; }
+.field-info { display: inline-flex; position: relative; margin-left: 4px; }
+.field-info summary { list-style: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: .72rem; font-weight: 900; cursor: pointer; border: 1px solid rgba(15,107,95,.22); }
+.field-info summary::-webkit-details-marker { display: none; }
+.field-info-body { position: absolute; z-index: 5; top: 24px; left: 0; width: min(340px, 82vw); padding: 10px 12px; border-radius: 13px; border: 1px solid var(--line-strong); background: #fffdf8; color: var(--ink); box-shadow: 0 16px 36px rgba(53,43,28,.16); font-size: .82rem; line-height: 1.35; font-weight: 600; }
 input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 11px 12px; background: #fffdf8; color: var(--ink); font: inherit; outline: none; }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(15,107,95,.12); }
 textarea { min-height: 260px; font-family: "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace; resize: vertical; }

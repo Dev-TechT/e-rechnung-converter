@@ -11,20 +11,25 @@ function sampleInvoice(overrides = {}) {
   return {
     invoiceNumber: 'RE-2025-0001',
     issueDate: '2025-01-15',
+    invoiceTypeCode: '380',
     dueDate: '2025-02-01',
+    deliveryDate: '2025-01-15',
     currency: 'EUR',
     buyerReference: 'DEMO-LEITWEG-001',
     orderNumber: 'DEMO-ORDER-001',
     paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
     seller: {
-      name: 'Demo Lieferant GmbH', street: 'Hauptstr. 1', postalCode: '10115', city: 'Berlin', country: 'DE', vatId: 'DEMO-VAT-ID', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'DEMO-SELLER-ID', telephone: '+49 30 123456'
+      name: 'Demo Lieferant GmbH', street: 'Hauptstr. 1', postalCode: '10115', city: 'Berlin', country: 'DE', vatId: 'DEMO-VAT-ID', endpointId: 'seller@example.invalid', endpointSchemeId: 'EM', sellerIdentifier: 'DEMO-SELLER-ID', telephone: '+49 30 123456', contactEmail: 'seller@example.invalid'
     },
     buyer: {
       name: 'Demo Empfänger', street: 'Empfängerweg 1', postalCode: '00000', city: 'Demostadt', country: 'DE', endpointId: 'buyer@example.invalid', endpointSchemeId: 'EM'
     },
+    paymentMeansTypeCode: '58',
     paymentIban: 'DE00DEMO00000000000000',
+    paymentAccountName: 'Demo Lieferant GmbH',
+    paymentServiceProviderId: 'DEMODXXX',
     lines: [
-      { description: 'Beratungsleistung', quantity: '2', unitCode: 'HUR', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' }
+      { id: '1', description: 'Beratungsleistung', quantity: '2', unitCode: 'HUR', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' }
     ],
     ...overrides,
   };
@@ -790,13 +795,84 @@ test('preflight rejects missing required line net price and malformed invoice ob
   assert(result.errors.some((error) => error.includes('Rechnungsdatum')), 'object date should mention issue date');
 });
 
-test('required field catalog exposes star-marked fields for browser and LLM agents', () => {
+test('required field catalog exposes star-marked official and E-RechV fields for browser and LLM agents', () => {
   const fields = app.getRequiredFields('xrechnung-ubl');
   const ids = fields.map((field) => field.id);
-  for (const expected of ['invoiceNumber', 'issueDate', 'dueDate', 'buyerReference', 'orderNumber', 'sellerName', 'sellerEndpointId', 'sellerIdentifier', 'sellerTelephone', 'buyerName', 'paymentIban', 'paymentTerms', 'lineDescription', 'lineQuantity', 'lineNetPrice']) {
+  for (const expected of [
+    'invoiceNumber', 'issueDate', 'invoiceTypeCode', 'currency', 'dueDate',
+    'buyerReference', 'orderNumber',
+    'sellerName', 'sellerCity', 'sellerPostalCode', 'sellerCountry', 'sellerEndpointId', 'sellerIdentifier', 'sellerTelephone', 'sellerContactEmail',
+    'buyerName', 'buyerCity', 'buyerPostalCode', 'buyerCountry', 'buyerEndpointId',
+    'paymentMeansTypeCode', 'paymentIban', 'paymentTerms',
+    'lineId', 'lineDescription', 'lineQuantity', 'lineUnitCode', 'lineNetPrice'
+  ]) {
     assert(ids.includes(expected), `${expected} missing from required fields`);
   }
   assert(fields.every((field) => field.required === true), 'all returned fields should be marked required');
+  assert(fields.every((field) => field.bt && field.fillHelp && field.purpose && field.officialSource), 'required fields need BT metadata, fill help and official source');
+});
+
+
+test('recommended field catalog exposes human and agent guidance for non-blocking useful fields', () => {
+  const fields = app.getRecommendedFields('xrechnung-ubl');
+  const ids = fields.map((field) => field.id);
+  for (const expected of ['deliveryDate', 'paymentAccountName', 'paymentServiceProviderId', 'sellerVatId', 'buyerStreet']) {
+    assert(ids.includes(expected), `${expected} missing from recommended fields`);
+  }
+  assert(fields.every((field) => field.required === false && field.fillHelp && field.purpose), 'recommended fields need non-blocking guidance');
+});
+
+
+test('field help metadata can be rendered as hidden info popovers for every form field', () => {
+  const bindings = app.getFormFieldBindings();
+  const helpById = app.getFieldHelpInfo();
+  assert(bindings.every((field) => helpById.some((help) => help.id === field.id)), 'every bound form field needs help metadata');
+
+  const created = [];
+  const inputs = new Map();
+  function makeNode(tag) {
+    const node = {
+      tag,
+      children: [],
+      className: '',
+      textContent: '',
+      attributes: {},
+      dataset: {},
+      appendChild(child) { this.children.push(child); },
+      setAttribute(name, value) { this.attributes[name] = value; },
+      querySelector(selector) {
+        const wanted = selector.replace('.', '');
+        const visit = (candidate) => {
+          if (candidate.className === wanted) return candidate;
+          for (const child of candidate.children || []) {
+            const found = visit(child);
+            if (found) return found;
+          }
+          return null;
+        };
+        return visit(this);
+      },
+    };
+    created.push(node);
+    return node;
+  }
+  const labels = new Map();
+  for (const id of ['invoiceNumber', 'buyerReference', 'sellerContactEmail']) {
+    const labelText = makeNode('span');
+    labelText.className = 'label-text';
+    const label = makeNode('label');
+    label.appendChild(labelText);
+    label.querySelector = (selector) => selector === '.label-text' ? labelText : makeNode('span').querySelector.call(label, selector);
+    const input = { dataset: {}, attributes: {}, setAttribute(name, value) { this.attributes[name] = value; }, closest() { return label; } };
+    inputs.set(id, input);
+    labels.set(id, label);
+  }
+  const document = { getElementById(id) { return inputs.get(id) || null; }, createElement: makeNode };
+  const result = app.applyXRechnungFieldMetadata(document);
+  assert(result.infoPopovers >= 3, 'expected info popovers to be inserted');
+  assert(labels.get('buyerReference').querySelector('.field-info'), 'BuyerReference should get an info popover');
+  assert(inputs.get('buyerReference').dataset.fillHelp.includes('Leitweg-ID'), 'dataset should carry fill help for agents');
+  assert(inputs.get('sellerContactEmail').attributes.title.includes('BT-43'), 'title should include BT-43 help');
 });
 
 

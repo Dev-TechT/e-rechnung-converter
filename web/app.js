@@ -13,23 +13,58 @@
 })(typeof globalThis !== 'undefined' ? globalThis : window, function (fieldCatalog, agentFieldFillSchema) {
   'use strict';
 
-  const REQUIRED_FIELDS = [
-    { id: 'invoiceNumber', label: 'Rechnungsnummer', required: true },
-    { id: 'issueDate', label: 'Rechnungsdatum', required: true },
-    { id: 'dueDate', label: 'Fälligkeitsdatum', required: true },
-    { id: 'buyerReference', label: 'Leitweg-ID / BuyerReference', required: true },
-    { id: 'orderNumber', label: 'Auftragsnummer / Bestellreferenz', required: true },
-    { id: 'sellerName', label: 'Name des Rechnungsstellers', required: true },
-    { id: 'sellerEndpointId', label: 'E-Mail-Adresse des Rechnungsstellers / Endpoint-ID', required: true },
-    { id: 'sellerIdentifier', label: 'Seller Identifier / Verkäuferkennung', required: true },
-    { id: 'sellerTelephone', label: 'Telefon des Rechnungsstellers', required: true },
-    { id: 'buyerName', label: 'Name des Empfängers', required: true },
-    { id: 'paymentIban', label: 'IBAN', required: true },
-    { id: 'paymentTerms', label: 'Zahlungsbedingungen', required: true },
-    { id: 'lineDescription', label: 'Beschreibung Position 1', required: true },
-    { id: 'lineQuantity', label: 'Menge Position 1', required: true },
-    { id: 'lineNetPrice', label: 'Nettopreis Position 1', required: true },
-  ];
+  const OFFICIAL_SOURCES = Object.freeze({
+    xrechnungModel: 'KoSIT/IT-PLR XRechnung CIUS model, xrechnung-3.0.2-bundle-2026-01-31.zip, xrechnung-cius-model.xml',
+    erechnungBund: 'e-rechnung-bund.de FAQ: § 5 E-RechV Mindestangaben, Leitweg-ID BT-10, Bankverbindung BG-17, Zahlungsbedingungen BT-9/BT-20, E-Mail BT-43, Lieferanten-/Bestellnummer falls übermittelt',
+  });
+
+  const FIELD_HELP = Object.freeze([
+    { id: 'invoiceNumber', label: 'Rechnungsnummer', bt: 'BT-1', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Eindeutige Identifikation der Rechnung im System des Verkäufers.', fillHelp: 'Trage die eigene Rechnungsnummer genau wie auf der sichtbaren Rechnung ein, z. B. RE-2025-0001 oder 2026-021.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'invoice.invoiceNumber' },
+    { id: 'issueDate', label: 'Rechnungsdatum', bt: 'BT-2', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Ausstellungsdatum der Rechnung.', fillHelp: 'Datum der Rechnung im Format JJJJ-MM-TT eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'invoice.issueDate' },
+    { id: 'invoiceTypeCode', label: 'Rechnungsart-Code', bt: 'BT-3', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Kennzeichnet den Funktionstyp der Rechnung.', fillHelp: 'Meist 380 für normale Rechnung; 326 für Abschlags-/Anzahlungsrechnung; 381/384 für Gutschrift/Korrektur nur wenn fachlich richtig.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'invoice.invoiceTypeCode' },
+    { id: 'currency', label: 'Währung', bt: 'BT-5', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Währung, in der die Rechnungsbeträge angegeben sind.', fillHelp: 'ISO-Währungscode eintragen, in Deutschland normalerweise EUR.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'invoice.currency' },
+    { id: 'dueDate', label: 'Fälligkeitsdatum', bt: 'BT-9', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Fälligkeit des Rechnungsbetrags; nach E-RechV alternativ/zusätzlich Zahlungsbedingungen.', fillHelp: 'Datum eintragen, bis wann bezahlt werden soll. Wenn nur Text vorhanden ist, Zahlungsbedingungen zusätzlich ausfüllen.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'invoice.dueDate' },
+    { id: 'deliveryDate', label: 'Leistungs-/Lieferdatum', bt: 'BT-72', bg: 'BG-13', requirementLevel: 'recommended', purpose: 'Datum, an dem Lieferung oder Dienstleistung erbracht wurde.', fillHelp: 'Wenn auf der Rechnung vorhanden, Leistungsdatum oder Lieferdatum im Format JJJJ-MM-TT eintragen; nichts erfinden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'delivery.actualDate' },
+    { id: 'buyerReference', label: 'Leitweg-ID / BuyerReference', bt: 'BT-10', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Lenkungs-/Routingkennzeichen des öffentlichen Auftraggebers.', fillHelp: 'Leitweg-ID genau vom Auftraggeber übernehmen. Nicht die Auftragsnummer einsetzen. Wenn sie fehlt, beim Empfänger erfragen.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'invoice.buyerReference' },
+    { id: 'orderNumber', label: 'Auftragsnummer / Bestellreferenz', bt: 'BT-13', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Vom Erwerber ausgegebene Bestellung/Auftragsreferenz; bei Bundesrechnungen Pflicht, sofern übermittelt.', fillHelp: 'Bestellnummer, Auftragsnummer oder Purchase Order des Kunden eintragen, z. B. A-70764-708. Nicht mit der Leitweg-ID verwechseln.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'invoice.orderNumber' },
+    { id: 'paymentTerms', label: 'Zahlungsbedingungen', bt: 'BT-20', bg: 'INVOICE', requirementLevel: 'required', purpose: 'Textbeschreibung der Zahlungsbedingungen.', fillHelp: 'Zahlungsziel als Text eintragen, z. B. Zahlbar innerhalb von 14 Tagen ohne Abzug.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'invoice.paymentTerms' },
+    { id: 'paymentMeansTypeCode', label: 'Zahlungsart-Code', bt: 'BT-81', bg: 'BG-16', requirementLevel: 'required', purpose: 'Code des erwarteten Zahlungsmittels.', fillHelp: 'Für SEPA-/Banküberweisung normalerweise 58. Andere Codes nur verwenden, wenn die Zahlungsart wirklich anders ist.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'payment.meansTypeCode' },
+    { id: 'paymentIban', label: 'IBAN', bt: 'BT-84', bg: 'BG-17', requirementLevel: 'required', purpose: 'Konto, auf das der Rechnungsbetrag überwiesen werden soll.', fillHelp: 'IBAN des Zahlungsempfängers ohne Tippfehler eintragen; im XML am besten ohne Leerzeichen.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'payment.iban' },
+    { id: 'paymentAccountName', label: 'Kontoinhaber', bt: 'BT-85', bg: 'BG-17', requirementLevel: 'recommended', purpose: 'Name des Kontos bzw. Kontoinhabers.', fillHelp: 'Kontoinhaber angeben, wenn bekannt; hilfreich für Prüfung und Zahlungsabgleich.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'payment.accountName' },
+    { id: 'paymentServiceProviderId', label: 'BIC / Zahlungsdienstleister', bt: 'BT-86', bg: 'BG-17', requirementLevel: 'recommended', purpose: 'Kennung des kontoführenden Zahlungsdienstleisters.', fillHelp: 'BIC oder Zahlungsdienstleisterkennung eintragen, wenn vorhanden; bei SEPA oft aus IBAN ableitbar, aber für Menschen hilfreich.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'payment.serviceProviderId' },
+    { id: 'sellerName', label: 'Name des Rechnungsstellers', bt: 'BT-27', bg: 'BG-4', requirementLevel: 'required', purpose: 'Vollständiger rechtlicher Name des Verkäufers/Rechnungsstellers.', fillHelp: 'Firmenname oder Name exakt wie in der Rechnung bzw. Registrierung eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.name' },
+    { id: 'sellerStreet', label: 'Straße Rechnungssteller', bt: 'BT-35', bg: 'BG-5', requirementLevel: 'recommended', purpose: 'Hauptzeile der Verkäuferanschrift.', fillHelp: 'Straße und Hausnummer oder Postfach des Rechnungsstellers eintragen, wenn vorhanden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.street' },
+    { id: 'sellerPostalCode', label: 'PLZ Rechnungssteller', bt: 'BT-38', bg: 'BG-5', requirementLevel: 'required', purpose: 'Postleitzahl der Verkäuferanschrift.', fillHelp: 'Postleitzahl des Rechnungsstellers eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.postalCode' },
+    { id: 'sellerCity', label: 'Stadt Rechnungssteller', bt: 'BT-37', bg: 'BG-5', requirementLevel: 'required', purpose: 'Stadt/Gemeinde der Verkäuferanschrift.', fillHelp: 'Ort des Rechnungsstellers eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.city' },
+    { id: 'sellerCountry', label: 'Land Rechnungssteller', bt: 'BT-40', bg: 'BG-5', requirementLevel: 'required', purpose: 'ISO-Ländercode der Verkäuferanschrift.', fillHelp: 'Zweistelligen ISO-Code eintragen, z. B. DE für Deutschland.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.country' },
+    { id: 'sellerVatId', label: 'USt-ID', bt: 'BT-31', bg: 'BG-4', requirementLevel: 'recommended', purpose: 'Umsatzsteuer-Identifikationsnummer des Verkäufers, falls vorhanden.', fillHelp: 'USt-IdNr. eintragen, falls vorhanden. Keine Steuernummer mit DE-Präfix erfinden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.vatId' },
+    { id: 'sellerIdentifier', label: 'Seller Identifier / Verkäuferkennung', bt: 'BT-29', bg: 'BG-4', requirementLevel: 'required', purpose: 'Vom Erwerber vergebene Lieferanten-/Kreditorennummer; bei Bundesrechnungen Pflicht, sofern übermittelt.', fillHelp: 'Lieferantennummer/Kreditorennummer des Auftraggebers eintragen. Wenn nicht übermittelt, als fehlend markieren statt erfinden.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'seller.identifier' },
+    { id: 'sellerEndpointId', label: 'Elektronische Adresse Rechnungssteller', bt: 'BT-34', bg: 'BG-4', requirementLevel: 'required', purpose: 'Elektronische Adresse des Verkäufers für technische Rückantworten.', fillHelp: 'Elektronische Adresse des Rechnungsstellers eintragen, z. B. E-Mail mit schemeID EM oder Peppol-ID mit passender schemeID.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.endpointId' },
+    { id: 'sellerEndpointSchemeId', label: 'Endpoint schemeID Rechnungssteller', bt: 'BT-34', bg: 'BG-4', requirementLevel: 'recommended', purpose: 'Kennzeichnet das Identifikationsschema der elektronischen Adresse.', fillHelp: 'Für einfache E-Mail meist EM. Bei Peppol oder anderen IDs den passenden Scheme-Code verwenden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.endpointSchemeId' },
+    { id: 'sellerTelephone', label: 'Telefon des Rechnungsstellers', bt: 'BT-42', bg: 'BG-6', requirementLevel: 'required', purpose: 'Telefonnummer der Kontaktstelle des Verkäufers.', fillHelp: 'Telefonnummer für Rückfragen eintragen, inklusive Landesvorwahl wenn möglich.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'seller.telephone' },
+    { id: 'sellerContactEmail', label: 'Kontakt-E-Mail Rechnungssteller', bt: 'BT-43', bg: 'BG-6', requirementLevel: 'required', purpose: 'E-Mail-Adresse der Kontaktstelle; nach E-RechV Mindestangabe für Bundesrechnungen.', fillHelp: 'Kontakt-E-Mail des Rechnungsstellers eintragen. Kann mit der Endpoint-ID identisch sein, bleibt aber fachlich das Kontaktfeld BT-43.', officialSource: OFFICIAL_SOURCES.erechnungBund, role: 'seller.contactEmail' },
+    { id: 'buyerName', label: 'Name des Empfängers', bt: 'BT-44', bg: 'BG-7', requirementLevel: 'required', purpose: 'Vollständiger Name des Erwerbers/Rechnungsempfängers.', fillHelp: 'Name der Behörde, Firma oder Person eintragen, die die Rechnung erhält.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.name' },
+    { id: 'buyerStreet', label: 'Straße Empfänger', bt: 'BT-50', bg: 'BG-8', requirementLevel: 'recommended', purpose: 'Hauptzeile der Erwerberanschrift.', fillHelp: 'Straße und Hausnummer oder Postfach des Empfängers eintragen, wenn vorhanden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.street' },
+    { id: 'buyerPostalCode', label: 'PLZ Empfänger', bt: 'BT-53', bg: 'BG-8', requirementLevel: 'required', purpose: 'Postleitzahl der Erwerberanschrift.', fillHelp: 'Postleitzahl des Empfängers eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.postalCode' },
+    { id: 'buyerCity', label: 'Stadt Empfänger', bt: 'BT-52', bg: 'BG-8', requirementLevel: 'required', purpose: 'Stadt/Gemeinde der Erwerberanschrift.', fillHelp: 'Ort des Rechnungsempfängers eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.city' },
+    { id: 'buyerCountry', label: 'Land Empfänger', bt: 'BT-55', bg: 'BG-8', requirementLevel: 'required', purpose: 'ISO-Ländercode der Erwerberanschrift.', fillHelp: 'Zweistelligen ISO-Code eintragen, z. B. DE für Deutschland.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.country' },
+    { id: 'buyerEndpointId', label: 'Elektronische Adresse Empfänger', bt: 'BT-49', bg: 'BG-7', requirementLevel: 'required', purpose: 'Elektronische Adresse, an die die Rechnung gesendet werden sollte.', fillHelp: 'E-Mail, Peppol-ID oder anderes vom Empfänger genanntes elektronisches Adresskennzeichen eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.endpointId' },
+    { id: 'buyerEndpointSchemeId', label: 'Endpoint schemeID Empfänger', bt: 'BT-49', bg: 'BG-7', requirementLevel: 'recommended', purpose: 'Kennzeichnet das Identifikationsschema der Empfängeradresse.', fillHelp: 'Für einfache E-Mail meist EM. Bei Peppol oder Behördenplattformen den angegebenen Scheme-Code verwenden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'buyer.endpointSchemeId' },
+    { id: 'lineId', label: 'Positions-ID', bt: 'BT-126', bg: 'BG-25', requirementLevel: 'required', purpose: 'Eindeutige Kennung der Rechnungsposition.', fillHelp: 'Positionsnummer eintragen, z. B. 1. Bei mehreren Positionen eindeutig je Zeile.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'line.id' },
+    { id: 'lineDescription', label: 'Beschreibung Position 1', bt: 'BT-153', bg: 'BG-31', requirementLevel: 'required', purpose: 'Name/Beschreibung der abgerechneten Ware oder Leistung.', fillHelp: 'Kurze, prüfbare Bezeichnung der Leistung/Ware eintragen; Details können aus der sichtbaren Rechnung übernommen werden.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'line.itemName' },
+    { id: 'lineQuantity', label: 'Menge Position 1', bt: 'BT-129', bg: 'BG-25', requirementLevel: 'required', purpose: 'Abgerechnete Menge der Position.', fillHelp: 'Menge als Zahl eintragen, z. B. 1 oder 2.5.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'line.quantity' },
+    { id: 'lineUnitCode', label: 'Einheit Position 1', bt: 'BT-130', bg: 'BG-25', requirementLevel: 'required', purpose: 'Einheitencode der Menge.', fillHelp: 'UN/ECE-Einheitencode eintragen, z. B. C62 für Stück oder HUR für Stunde.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'line.unitCode' },
+    { id: 'lineNetPrice', label: 'Nettopreis Position 1', bt: 'BT-146', bg: 'BG-29', requirementLevel: 'required', purpose: 'Netto-Einzelpreis ohne Umsatzsteuer.', fillHelp: 'Netto-Einzelpreis mit Punkt oder Komma als Dezimaltrennzeichen eintragen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'line.netPrice' },
+    { id: 'lineTaxPercent', label: 'MwSt % Position 1', bt: 'BT-152', bg: 'BG-30', requirementLevel: 'recommended', purpose: 'Umsatzsteuersatz der Position.', fillHelp: 'Steuersatz als Prozentzahl eintragen, z. B. 19 oder 7. Bei steuerfreiem Umsatz weitere Steuerfelder prüfen.', officialSource: OFFICIAL_SOURCES.xrechnungModel, role: 'line.taxPercent' },
+  ]);
+
+  const REQUIRED_FIELDS = FIELD_HELP
+    .filter((field) => field.requirementLevel === 'required')
+    .map((field) => ({ ...field, required: true }));
+
+  const RECOMMENDED_FIELDS = FIELD_HELP
+    .filter((field) => field.requirementLevel === 'recommended')
+    .map((field) => ({ ...field, required: false }));
 
   const FORMATS = {
     'xrechnung-ubl': {
@@ -124,60 +159,62 @@
     }));
   }
 
-  const FORM_FIELD_BINDINGS = [
-    { id: 'invoiceNumber', bt: 'BT-1', bg: 'INVOICE', role: 'invoice.invoiceNumber' },
-    { id: 'issueDate', bt: 'BT-2', bg: 'INVOICE', role: 'invoice.issueDate' },
-    { id: 'dueDate', bt: 'BT-9', bg: 'INVOICE', role: 'invoice.dueDate' },
-    { id: 'currency', bt: 'BT-5', bg: 'INVOICE', role: 'invoice.currency' },
-    { id: 'buyerReference', bt: 'BT-10', bg: 'INVOICE', role: 'invoice.buyerReference' },
-    { id: 'orderNumber', bt: 'BT-13', bg: 'INVOICE', role: 'invoice.orderNumber' },
-    { id: 'paymentTerms', bt: 'BT-20', bg: 'INVOICE', role: 'invoice.paymentTerms' },
-    { id: 'paymentIban', bt: 'BT-84', bg: 'BG-17', role: 'payment.iban' },
-    { id: 'sellerName', bt: 'BT-27', bg: 'BG-4', role: 'seller.name' },
-    { id: 'sellerStreet', bt: 'BT-35', bg: 'BG-5', role: 'seller.street' },
-    { id: 'sellerPostalCode', bt: 'BT-38', bg: 'BG-5', role: 'seller.postalCode' },
-    { id: 'sellerCity', bt: 'BT-37', bg: 'BG-5', role: 'seller.city' },
-    { id: 'sellerCountry', bt: 'BT-40', bg: 'BG-5', role: 'seller.country' },
-    { id: 'sellerVatId', bt: 'BT-31', bg: 'BG-4', role: 'seller.vatId' },
-    { id: 'sellerIdentifier', bt: 'BT-29', bg: 'BG-4', role: 'seller.identifier' },
-    { id: 'sellerEndpointId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointId' },
-    { id: 'sellerTelephone', bt: 'BT-42', bg: 'BG-6', role: 'seller.telephone' },
-    { id: 'sellerEndpointSchemeId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointSchemeId' },
-    { id: 'buyerName', bt: 'BT-44', bg: 'BG-7', role: 'buyer.name' },
-    { id: 'buyerStreet', bt: 'BT-50', bg: 'BG-8', role: 'buyer.street' },
-    { id: 'buyerPostalCode', bt: 'BT-53', bg: 'BG-8', role: 'buyer.postalCode' },
-    { id: 'buyerCity', bt: 'BT-52', bg: 'BG-8', role: 'buyer.city' },
-    { id: 'buyerCountry', bt: 'BT-55', bg: 'BG-8', role: 'buyer.country' },
-    { id: 'buyerEndpointId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointId' },
-    { id: 'buyerEndpointSchemeId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointSchemeId' },
-    { id: 'lineDescription', bt: 'BT-153', bg: 'BG-31', role: 'line.itemName' },
-    { id: 'lineQuantity', bt: 'BT-129', bg: 'BG-25', role: 'line.quantity' },
-    { id: 'lineUnitCode', bt: 'BT-130', bg: 'BG-25', role: 'line.unitCode' },
-    { id: 'lineNetPrice', bt: 'BT-146', bg: 'BG-29', role: 'line.netPrice' },
-    { id: 'lineTaxPercent', bt: 'BT-152', bg: 'BG-30', role: 'line.taxPercent' },
-  ];
+  const FORM_FIELD_BINDINGS = FIELD_HELP.map(({ id, bt, bg, role }) => ({ id, bt, bg, role }));
 
   function getCatalogTerm(id) {
     const catalog = getXRechnungFieldCatalog();
     return (catalog.terms || []).find((term) => term.id === id) || null;
   }
 
+  function getFieldHelpInfo() {
+    return FIELD_HELP.map((field) => ({ ...field, required: field.requirementLevel === 'required' }));
+  }
+
+  function getHelpForField(id) {
+    return FIELD_HELP.find((field) => field.id === id) || null;
+  }
+
   function getFormFieldBindings() {
     return FORM_FIELD_BINDINGS.map((binding) => {
       const term = getCatalogTerm(binding.bt);
       const group = binding.bg === 'INVOICE' ? { name: 'INVOICE' } : getCatalogTerm(binding.bg);
+      const help = getHelpForField(binding.id) || {};
       return {
         ...binding,
+        label: help.label || binding.id,
         catalogName: term?.name || binding.bt,
         datatype: term?.datatype || '',
         requiredInModel: Boolean(term?.required),
+        requirementLevel: help.requirementLevel || (term?.required ? 'required' : 'optional'),
+        purpose: help.purpose || term?.description || '',
+        fillHelp: help.fillHelp || term?.description || '',
+        officialSource: help.officialSource || OFFICIAL_SOURCES.xrechnungModel,
         groupName: group?.name || binding.bg,
       };
     });
   }
 
+  function insertFieldInfoPopover(document, input, binding) {
+    const label = input.closest?.('label');
+    if (!label || label.querySelector?.('.field-info')) return false;
+    const container = label.querySelector?.('.label-text') || label;
+    const details = document.createElement('details');
+    details.className = 'field-info';
+    const summary = document.createElement('summary');
+    summary.textContent = 'i';
+    summary.setAttribute?.('aria-label', `Info zu ${binding.label}`);
+    const body = document.createElement('div');
+    body.className = 'field-info-body';
+    body.textContent = `${binding.bt} ${binding.catalogName}. Zweck: ${binding.purpose} Ausfüllen: ${binding.fillHelp} Quelle: ${binding.officialSource}`;
+    details.appendChild(summary);
+    details.appendChild(body);
+    container.appendChild(details);
+    return true;
+  }
+
   function applyXRechnungFieldMetadata(document) {
     let annotated = 0;
+    let infoPopovers = 0;
     for (const binding of getFormFieldBindings()) {
       const input = document.getElementById(binding.id);
       if (!input) continue;
@@ -185,12 +222,17 @@
       input.dataset.bg = binding.bg;
       input.dataset.xrechnungName = binding.catalogName;
       input.dataset.xrechnungGroup = binding.groupName;
-      const title = `${binding.bt} ${binding.catalogName} · ${binding.bg} ${binding.groupName}`;
+      input.dataset.requirementLevel = binding.requirementLevel;
+      input.dataset.purpose = binding.purpose;
+      input.dataset.fillHelp = binding.fillHelp;
+      input.dataset.officialSource = binding.officialSource;
+      const title = `${binding.bt} ${binding.catalogName} · ${binding.bg} ${binding.groupName} · Ausfüllen: ${binding.fillHelp}`;
       input.setAttribute?.('title', title);
       input.setAttribute?.('aria-description', title);
+      if (insertFieldInfoPopover(document, input, binding)) infoPopovers += 1;
       annotated += 1;
     }
-    return { ok: true, annotated };
+    return { ok: true, annotated, infoPopovers };
   }
 
   function decimal(value, fallback = 0) {
@@ -234,11 +276,17 @@
     return REQUIRED_FIELDS.map((field) => ({ ...field }));
   }
 
+  function getRecommendedFields() {
+    return RECOMMENDED_FIELDS.map((field) => ({ ...field }));
+  }
+
   function normalizeInvoice(invoice) {
     return {
       invoiceNumber: invoice?.invoiceNumber,
       issueDate: invoice?.issueDate,
+      invoiceTypeCode: invoice?.invoiceTypeCode || '380',
       dueDate: invoice?.dueDate,
+      deliveryDate: invoice?.deliveryDate,
       currency: invoice?.currency || 'EUR',
       buyerReference: invoice?.buyerReference,
       orderNumber: invoice?.orderNumber,
@@ -248,9 +296,12 @@
       buyer: {
         ...(invoice?.buyer || {}),
       },
+      paymentMeansTypeCode: invoice?.paymentMeansTypeCode || '58',
       paymentIban: invoice?.paymentIban,
+      paymentAccountName: invoice?.paymentAccountName,
+      paymentServiceProviderId: invoice?.paymentServiceProviderId,
       paymentTerms: invoice?.paymentTerms,
-      lines: Array.isArray(invoice?.lines) ? invoice.lines.map((line) => line || {}) : [],
+      lines: Array.isArray(invoice?.lines) ? invoice.lines.map((line, index) => ({ id: String(index + 1), ...(line || {}) })) : [],
     };
   }
 
@@ -266,14 +317,25 @@
 
     requireStringField(errors, invoice.invoiceNumber, 'Rechnungsnummer');
     requireStringField(errors, invoice.issueDate, 'Rechnungsdatum');
+    requireStringField(errors, invoice.invoiceTypeCode, 'Rechnungsart-Code');
+    requireStringField(errors, invoice.currency, 'Währung');
     requireStringField(errors, invoice.dueDate, 'Fälligkeitsdatum');
     requireStringField(errors, invoice.buyerReference, 'Leitweg-ID / BuyerReference');
     requireStringField(errors, invoice.orderNumber, 'Auftragsnummer / Bestellreferenz');
     requireStringField(errors, invoice.seller?.name, 'Name des Rechnungsstellers');
-    requireStringField(errors, invoice.seller?.endpointId, 'E-Mail-Adresse des Rechnungsstellers / Endpoint-ID');
+    requireStringField(errors, invoice.seller?.postalCode, 'PLZ Rechnungssteller');
+    requireStringField(errors, invoice.seller?.city, 'Stadt Rechnungssteller');
+    requireStringField(errors, invoice.seller?.country, 'Land Rechnungssteller');
+    requireStringField(errors, invoice.seller?.endpointId, 'E-Mail-Adresse / elektronische Adresse des Rechnungsstellers / Endpoint-ID');
     requireStringField(errors, invoice.seller?.sellerIdentifier, 'Seller Identifier / Verkäuferkennung');
     requireStringField(errors, invoice.seller?.telephone, 'Telefon des Rechnungsstellers');
+    requireStringField(errors, invoice.seller?.contactEmail || invoice.seller?.endpointId, 'Kontakt-E-Mail des Rechnungsstellers');
     requireStringField(errors, invoice.buyer?.name, 'Name des Empfängers');
+    requireStringField(errors, invoice.buyer?.postalCode, 'PLZ Empfänger');
+    requireStringField(errors, invoice.buyer?.city, 'Stadt Empfänger');
+    requireStringField(errors, invoice.buyer?.country, 'Land Empfänger');
+    requireStringField(errors, invoice.buyer?.endpointId, 'Elektronische Adresse des Empfängers / Endpoint-ID');
+    requireStringField(errors, invoice.paymentMeansTypeCode, 'Zahlungsart-Code');
     requireStringField(errors, invoice.paymentIban, 'IBAN');
     requireStringField(errors, invoice.paymentTerms, 'Zahlungsbedingungen');
 
@@ -281,8 +343,10 @@
       errors.push('Mindestens eine Rechnungsposition fehlt.');
     } else {
       invoice.lines.forEach((line, index) => {
+        requireStringField(errors, line.id, `Positions-ID Position ${index + 1}`);
         requireStringField(errors, line.description, `Beschreibung Position ${index + 1}`);
         requireStringField(errors, line.quantity, `Menge Position ${index + 1}`);
+        requireStringField(errors, line.unitCode, `Einheit Position ${index + 1}`);
         requireStringField(errors, line.netPrice, `Nettopreis Position ${index + 1}`);
         if (String(line.quantity ?? '').trim() && decimal(line.quantity) <= 0) errors.push(`Menge Position ${index + 1} muss größer als 0 sein.`);
         if (String(line.netPrice ?? '').trim() && decimal(line.netPrice) < 0) errors.push(`Nettopreis Position ${index + 1} darf nicht negativ sein.`);
@@ -320,7 +384,7 @@
       </cac:PostalAddress>
       ${party.vatId ? `<cac:PartyTaxScheme><cbc:CompanyID>${escapeXml(party.vatId)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>` : ''}
       <cac:PartyLegalEntity><cbc:RegistrationName>${escapeXml(party.name)}</cbc:RegistrationName></cac:PartyLegalEntity>
-      ${(party.endpointId || party.telephone) ? `<cac:Contact><cbc:Name>${escapeXml(party.name)}</cbc:Name>${party.telephone ? `<cbc:Telephone>${escapeXml(party.telephone)}</cbc:Telephone>` : ''}${party.endpointId ? `<cbc:ElectronicMail>${escapeXml(party.endpointId)}</cbc:ElectronicMail>` : ''}</cac:Contact>` : ''}
+      ${(party.endpointId || party.telephone || party.contactEmail) ? `<cac:Contact><cbc:Name>${escapeXml(party.name)}</cbc:Name>${party.telephone ? `<cbc:Telephone>${escapeXml(party.telephone)}</cbc:Telephone>` : ''}${(party.contactEmail || party.endpointId) ? `<cbc:ElectronicMail>${escapeXml(party.contactEmail || party.endpointId)}</cbc:ElectronicMail>` : ''}</cac:Contact>` : ''}
     </cac:Party>`;
   }
 
@@ -335,7 +399,7 @@
       const taxPercent = decimal(line.taxPercent, 19);
       return `
   <cac:InvoiceLine>
-    <cbc:ID>${index + 1}</cbc:ID>
+    <cbc:ID>${escapeXml(line.id || String(index + 1))}</cbc:ID>
     <cbc:InvoicedQuantity unitCode="${escapeXml(line.unitCode || 'C62')}">${escapeXml(line.quantity)}</cbc:InvoicedQuantity>
     <cbc:LineExtensionAmount currencyID="${currency}">${formatMoney(lineAmount)}</cbc:LineExtensionAmount>
     <cac:Item>
@@ -353,7 +417,7 @@
   <cbc:ID>${escapeXml(invoice.invoiceNumber)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(invoice.issueDate)}</cbc:IssueDate>
   <cbc:DueDate>${escapeXml(invoice.dueDate)}</cbc:DueDate>
-  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:InvoiceTypeCode>${escapeXml(invoice.invoiceTypeCode || '380')}</cbc:InvoiceTypeCode>
   <cbc:Note>${escapeXml(invoice.paymentTerms)}</cbc:Note>
   <cbc:DocumentCurrencyCode>${escapeXml(currency)}</cbc:DocumentCurrencyCode>
   <cbc:BuyerReference>${escapeXml(invoice.buyerReference)}</cbc:BuyerReference>
@@ -361,8 +425,9 @@
   <cac:AccountingSupplierParty>${partyUblXml(invoice.seller)}
   </cac:AccountingSupplierParty>
   <cac:AccountingCustomerParty>${partyUblXml(invoice.buyer)}
-  </cac:AccountingCustomerParty>
-  <cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${escapeXml(invoice.paymentIban)}</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>
+  </cac:AccountingCustomerParty>${invoice.deliveryDate ? `
+  <cac:Delivery><cbc:ActualDeliveryDate>${escapeXml(invoice.deliveryDate)}</cbc:ActualDeliveryDate></cac:Delivery>` : ''}
+  <cac:PaymentMeans><cbc:PaymentMeansCode>${escapeXml(invoice.paymentMeansTypeCode || '58')}</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${escapeXml(invoice.paymentIban)}</cbc:ID>${invoice.paymentAccountName ? `<cbc:Name>${escapeXml(invoice.paymentAccountName)}</cbc:Name>` : ''}${invoice.paymentServiceProviderId ? `<cac:FinancialInstitutionBranch><cbc:ID>${escapeXml(invoice.paymentServiceProviderId)}</cbc:ID></cac:FinancialInstitutionBranch>` : ''}</cac:PayeeFinancialAccount></cac:PaymentMeans>
   <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>${formatMoney(totals.taxPercent)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>
   <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:LineExtensionAmount><cbc:TaxExclusiveAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxExclusiveAmount><cbc:TaxInclusiveAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:TaxInclusiveAmount><cbc:PayableAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:PayableAmount></cac:LegalMonetaryTotal>${lineXml}
 </Invoice>`;
@@ -378,7 +443,7 @@
       const lineAmount = money(decimal(line.quantity) * decimal(line.netPrice));
       return `
       <ram:IncludedSupplyChainTradeLineItem>
-        <ram:AssociatedDocumentLineDocument><ram:LineID>${index + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
+        <ram:AssociatedDocumentLineDocument><ram:LineID>${escapeXml(line.id || String(index + 1))}</ram:LineID></ram:AssociatedDocumentLineDocument>
         <ram:SpecifiedTradeProduct><ram:Name>${escapeXml(line.description)}</ram:Name></ram:SpecifiedTradeProduct>
         <ram:SpecifiedLineTradeAgreement><ram:NetPriceProductTradePrice><ram:ChargeAmount>${formatMoney(decimal(line.netPrice))}</ram:ChargeAmount></ram:NetPriceProductTradePrice></ram:SpecifiedLineTradeAgreement>
         <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="${escapeXml(line.unitCode || 'C62')}">${escapeXml(line.quantity)}</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>
@@ -389,18 +454,18 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
   <rsm:ExchangedDocumentContext><ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${guideline}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>
-  <rsm:ExchangedDocument><ram:ID>${escapeXml(invoice.invoiceNumber)}</ram:ID><ram:TypeCode>380</ram:TypeCode><ram:IssueDateTime><udt:DateTimeString format="102">${escapeXml(invoice.issueDate.replaceAll('-', ''))}</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>
+  <rsm:ExchangedDocument><ram:ID>${escapeXml(invoice.invoiceNumber)}</ram:ID><ram:TypeCode>${escapeXml(invoice.invoiceTypeCode || '380')}</ram:TypeCode><ram:IssueDateTime><udt:DateTimeString format="102">${escapeXml(invoice.issueDate.replaceAll('-', ''))}</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>
   <rsm:SupplyChainTradeTransaction>${lineXml}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:BuyerReference>${escapeXml(invoice.buyerReference)}</ram:BuyerReference>
-      <ram:SellerTradeParty><ram:ID>${escapeXml(invoice.seller.sellerIdentifier)}</ram:ID><ram:Name>${escapeXml(invoice.seller.name)}</ram:Name><ram:DefinedTradeContact><ram:PersonName>${escapeXml(invoice.seller.name)}</ram:PersonName><ram:TelephoneUniversalCommunication><ram:CompleteNumber>${escapeXml(invoice.seller.telephone)}</ram:CompleteNumber></ram:TelephoneUniversalCommunication><ram:EmailURIUniversalCommunication><ram:URIID>${escapeXml(invoice.seller.endpointId)}</ram:URIID></ram:EmailURIUniversalCommunication></ram:DefinedTradeContact><ram:PostalTradeAddress><ram:PostcodeCode>${escapeXml(invoice.seller.postalCode)}</ram:PostcodeCode><ram:LineOne>${escapeXml(invoice.seller.street)}</ram:LineOne><ram:CityName>${escapeXml(invoice.seller.city)}</ram:CityName><ram:CountryID>${escapeXml(invoice.seller.country || 'DE')}</ram:CountryID></ram:PostalTradeAddress><ram:URIUniversalCommunication><ram:URIID schemeID="${escapeXml(invoice.seller.endpointSchemeId || 'EM')}">${escapeXml(invoice.seller.endpointId)}</ram:URIID></ram:URIUniversalCommunication>${invoice.seller.vatId ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${escapeXml(invoice.seller.vatId)}</ram:ID></ram:SpecifiedTaxRegistration>` : ''}</ram:SellerTradeParty>
+      <ram:SellerTradeParty><ram:ID>${escapeXml(invoice.seller.sellerIdentifier)}</ram:ID><ram:Name>${escapeXml(invoice.seller.name)}</ram:Name><ram:DefinedTradeContact><ram:PersonName>${escapeXml(invoice.seller.name)}</ram:PersonName><ram:TelephoneUniversalCommunication><ram:CompleteNumber>${escapeXml(invoice.seller.telephone)}</ram:CompleteNumber></ram:TelephoneUniversalCommunication><ram:EmailURIUniversalCommunication><ram:URIID>${escapeXml(invoice.seller.contactEmail || invoice.seller.endpointId)}</ram:URIID></ram:EmailURIUniversalCommunication></ram:DefinedTradeContact><ram:PostalTradeAddress><ram:PostcodeCode>${escapeXml(invoice.seller.postalCode)}</ram:PostcodeCode><ram:LineOne>${escapeXml(invoice.seller.street)}</ram:LineOne><ram:CityName>${escapeXml(invoice.seller.city)}</ram:CityName><ram:CountryID>${escapeXml(invoice.seller.country || 'DE')}</ram:CountryID></ram:PostalTradeAddress><ram:URIUniversalCommunication><ram:URIID schemeID="${escapeXml(invoice.seller.endpointSchemeId || 'EM')}">${escapeXml(invoice.seller.endpointId)}</ram:URIID></ram:URIUniversalCommunication>${invoice.seller.vatId ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${escapeXml(invoice.seller.vatId)}</ram:ID></ram:SpecifiedTaxRegistration>` : ''}</ram:SellerTradeParty>
       <ram:BuyerTradeParty><ram:Name>${escapeXml(invoice.buyer.name)}</ram:Name><ram:PostalTradeAddress><ram:PostcodeCode>${escapeXml(invoice.buyer.postalCode)}</ram:PostcodeCode><ram:LineOne>${escapeXml(invoice.buyer.street)}</ram:LineOne><ram:CityName>${escapeXml(invoice.buyer.city)}</ram:CityName><ram:CountryID>${escapeXml(invoice.buyer.country || 'DE')}</ram:CountryID></ram:PostalTradeAddress>${invoice.buyer.endpointId ? `<ram:URIUniversalCommunication><ram:URIID schemeID="${escapeXml(invoice.buyer.endpointSchemeId || 'EM')}">${escapeXml(invoice.buyer.endpointId)}</ram:URIID></ram:URIUniversalCommunication>` : ''}</ram:BuyerTradeParty>
       <ram:BuyerOrderReferencedDocument><ram:IssuerAssignedID>${escapeXml(invoice.orderNumber)}</ram:IssuerAssignedID></ram:BuyerOrderReferencedDocument>
     </ram:ApplicableHeaderTradeAgreement>
-    <ram:ApplicableHeaderTradeDelivery />
+    <ram:ApplicableHeaderTradeDelivery>${invoice.deliveryDate ? `<ram:ActualDeliverySupplyChainEvent><ram:OccurrenceDateTime><udt:DateTimeString format="102">${escapeXml(invoice.deliveryDate.replaceAll('-', ''))}</udt:DateTimeString></ram:OccurrenceDateTime></ram:ActualDeliverySupplyChainEvent>` : ''}</ram:ApplicableHeaderTradeDelivery>
     <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>${escapeXml(currency)}</ram:InvoiceCurrencyCode>
-      <ram:SpecifiedTradeSettlementPaymentMeans><ram:TypeCode>58</ram:TypeCode><ram:PayeePartyCreditorFinancialAccount><ram:IBANID>${escapeXml(invoice.paymentIban)}</ram:IBANID></ram:PayeePartyCreditorFinancialAccount></ram:SpecifiedTradeSettlementPaymentMeans>
+      <ram:SpecifiedTradeSettlementPaymentMeans><ram:TypeCode>${escapeXml(invoice.paymentMeansTypeCode || '58')}</ram:TypeCode><ram:PayeePartyCreditorFinancialAccount><ram:IBANID>${escapeXml(invoice.paymentIban)}</ram:IBANID>${invoice.paymentAccountName ? `<ram:AccountName>${escapeXml(invoice.paymentAccountName)}</ram:AccountName>` : ''}</ram:PayeePartyCreditorFinancialAccount>${invoice.paymentServiceProviderId ? `<ram:PayeeSpecifiedCreditorFinancialInstitution><ram:BICID>${escapeXml(invoice.paymentServiceProviderId)}</ram:BICID></ram:PayeeSpecifiedCreditorFinancialInstitution>` : ''}</ram:SpecifiedTradeSettlementPaymentMeans>
       <ram:ApplicableTradeTax><ram:CalculatedAmount>${formatMoney(totals.tax)}</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>${formatMoney(totals.taxable)}</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${formatMoney(totals.taxPercent)}</ram:RateApplicablePercent></ram:ApplicableTradeTax>
       <ram:SpecifiedTradePaymentTerms><ram:Description>${escapeXml(invoice.paymentTerms)}</ram:Description></ram:SpecifiedTradePaymentTerms>
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation><ram:LineTotalAmount>${formatMoney(totals.taxable)}</ram:LineTotalAmount><ram:TaxBasisTotalAmount>${formatMoney(totals.taxable)}</ram:TaxBasisTotalAmount><ram:TaxTotalAmount currencyID="${currency}">${formatMoney(totals.tax)}</ram:TaxTotalAmount><ram:GrandTotalAmount>${formatMoney(totals.payable)}</ram:GrandTotalAmount><ram:DuePayableAmount>${formatMoney(totals.payable)}</ram:DuePayableAmount></ram:SpecifiedTradeSettlementHeaderMonetarySummation>
@@ -457,19 +522,29 @@
     const aliases = {
       invoicenumber: 'invoiceNumber', rechnungsnummer: 'invoiceNumber', id: 'invoiceNumber',
       issuedate: 'issueDate', rechnungsdatum: 'issueDate',
+      invoicetypecode: 'invoiceTypeCode', rechnungsartcode: 'invoiceTypeCode', typecode: 'invoiceTypeCode',
       duedate: 'dueDate', faelligkeitsdatum: 'dueDate', fälligkeitsdatum: 'dueDate',
+      deliverydate: 'deliveryDate', leistungsdatum: 'deliveryDate', lieferdatum: 'deliveryDate',
+      currency: 'currency', waehrung: 'currency', währung: 'currency',
       buyerreference: 'buyerReference', leitwegid: 'buyerReference', leitweg: 'buyerReference',
       buyerreferencebt10: 'buyerReference',
-      ordernumber: 'orderNumber', auftragsnummer: 'orderNumber', bestellreferenz: 'orderNumber',
+      ordernumber: 'orderNumber', auftragsnummer: 'orderNumber', bestellreferenz: 'orderNumber', bestellnummer: 'orderNumber',
+      paymentmeanstypecode: 'paymentMeansTypeCode', zahlungsartcode: 'paymentMeansTypeCode',
       paymentiban: 'paymentIban', iban: 'paymentIban',
+      paymentaccountname: 'paymentAccountName', kontoinhaber: 'paymentAccountName',
+      paymentserviceproviderid: 'paymentServiceProviderId', bic: 'paymentServiceProviderId', bankkennung: 'paymentServiceProviderId',
       paymentterms: 'paymentTerms', zahlungsbedingungen: 'paymentTerms',
       sellername: 'sellerName', rechnungssteller: 'sellerName',
-      sellerendpointid: 'sellerEndpointId', selleremail: 'sellerEndpointId', email: 'sellerEndpointId',
-      selleridentifier: 'sellerIdentifier', verkaeuferkennung: 'sellerIdentifier', verkäuferkennung: 'sellerIdentifier',
+      sellerendpointid: 'sellerEndpointId', selleremail: 'sellerContactEmail', email: 'sellerContactEmail',
+      sellercontactemail: 'sellerContactEmail', kontaktemail: 'sellerContactEmail',
+      selleridentifier: 'sellerIdentifier', verkaeuferkennung: 'sellerIdentifier', verkäuferkennung: 'sellerIdentifier', lieferantennummer: 'sellerIdentifier',
       sellertelephone: 'sellerTelephone', telefon: 'sellerTelephone', telephone: 'sellerTelephone', phone: 'sellerTelephone',
       buyername: 'buyerName', empfaenger: 'buyerName', empfänger: 'buyerName',
+      buyerendpointid: 'buyerEndpointId', empfaengerendpoint: 'buyerEndpointId', empfängerendpoint: 'buyerEndpointId',
+      lineid: 'lineId', positionsid: 'lineId', positionsnummer: 'lineId',
       linedescription: 'lineDescription', beschreibung: 'lineDescription',
       linequantity: 'lineQuantity', menge: 'lineQuantity',
+      lineunitcode: 'lineUnitCode', einheit: 'lineUnitCode', einheitencode: 'lineUnitCode',
       linenetprice: 'lineNetPrice', nettopreis: 'lineNetPrice',
     };
     return aliases[normalized];
@@ -479,12 +554,23 @@
     const fields = {};
     const patterns = [
       ['invoiceNumber', /(?:Rechnungsnummer|Invoice\s*Number)\s*[:#-]\s*([^\n\r]+)/i],
+      ['invoiceTypeCode', /(?:Rechnungsart\s*Code|Invoice\s*Type\s*Code|TypeCode)\s*[:#-]\s*([^\n\r]+)/i],
+      ['issueDate', /(?:Rechnungsdatum|Issue\s*Date)\s*[:#-]\s*([^\n\r]+)/i],
+      ['dueDate', /(?:Fälligkeitsdatum|Faelligkeitsdatum|Due\s*Date)\s*[:#-]\s*([^\n\r]+)/i],
+      ['deliveryDate', /(?:Leistungsdatum|Lieferdatum|Delivery\s*Date)\s*[:#-]\s*([^\n\r]+)/i],
+      ['currency', /(?:Währung|Waehrung|Currency)\s*[:#-]\s*([^\n\r]+)/i],
       ['buyerReference', /(?:Leitweg-ID|Buyer\s*Reference|Leitweg)\s*[:#-]\s*([^\n\r]+)/i],
-      ['orderNumber', /(?:Auftragsnummer|Bestellreferenz|Order\s*Number)\s*[:#-]\s*([^\n\r]+)/i],
+      ['orderNumber', /(?:Auftragsnummer|Bestellnummer|Bestellreferenz|Order\s*Number|Purchase\s*Order)\s*[:#-]\s*([^\n\r]+)/i],
+      ['paymentMeansTypeCode', /(?:Zahlungsart\s*Code|Payment\s*Means\s*Type\s*Code)\s*[:#-]\s*([^\n\r]+)/i],
       ['paymentIban', /(?:IBAN)\s*[:#-]\s*([^\n\r]+)/i],
+      ['paymentAccountName', /(?:Kontoinhaber|Payment\s*Account\s*Name)\s*[:#-]\s*([^\n\r]+)/i],
+      ['paymentServiceProviderId', /(?:BIC|Zahlungsdienstleister|Payment\s*Service\s*Provider)\s*[:#-]\s*([^\n\r]+)/i],
       ['paymentTerms', /(?:Zahlungsbedingungen|Payment\s*Terms)\s*[:#-]\s*([^\n\r]+)/i],
-      ['sellerEndpointId', /(?:E-Mail|Email|Endpoint-ID)\s*[:#-]\s*([^\n\r]+)/i],
+      ['sellerEndpointId', /(?:Endpoint-ID|Seller\s*Endpoint)\s*[:#-]\s*([^\n\r]+)/i],
+      ['sellerContactEmail', /(?:Kontakt-E-Mail|E-Mail|Email|Seller\s*Contact\s*Email)\s*[:#-]\s*([^\n\r]+)/i],
       ['sellerTelephone', /(?:Telefon|Telephone|Phone)\s*[:#-]\s*([^\n\r]+)/i],
+      ['buyerEndpointId', /(?:Empfänger\s*Endpoint|Buyer\s*Endpoint)\s*[:#-]\s*([^\n\r]+)/i],
+      ['lineId', /(?:Positionsnummer|Positions-ID|Line\s*ID)\s*[:#-]\s*([^\n\r]+)/i],
     ];
     for (const [key, pattern] of patterns) {
       const match = String(text || '').match(pattern);
@@ -542,13 +628,22 @@
     const firstCiiLine = section('IncludedSupplyChainTradeLineItem');
     const firstLine = firstUblLine || firstCiiLine;
 
+    const paymentMeans = section('PaymentMeans') || section('SpecifiedTradeSettlementPaymentMeans');
+    const payeeAccount = section('PayeeFinancialAccount', paymentMeans) || section('PayeePartyCreditorFinancialAccount', paymentMeans);
+    const financialInstitution = section('FinancialInstitutionBranch', paymentMeans) || section('PayeeSpecifiedCreditorFinancialInstitution', paymentMeans);
+
     assign('invoiceNumber', valueOf('ID', exchangedDocument) || firstOf('ID', 'InvoiceNumber'));
+    assign('invoiceTypeCode', valueOf('InvoiceTypeCode') || valueOf('TypeCode', exchangedDocument));
     assign('issueDate', dateFromXml(firstOf('IssueDate', 'DateTimeString')));
     assign('dueDate', dateFromXml(firstOf('DueDate')));
+    assign('deliveryDate', dateFromXml(valueOf('ActualDeliveryDate') || valueOf('DateTimeString', section('ActualDeliverySupplyChainEvent'))));
     assign('currency', firstOf('DocumentCurrencyCode', 'InvoiceCurrencyCode'));
     assign('buyerReference', firstOf('BuyerReference', 'BuyerReferenceBT10'));
     assign('orderNumber', valueOf('ID', section('OrderReference')) || valueOf('IssuerAssignedID', section('BuyerOrderReferencedDocument')));
-    assign('paymentIban', firstOf('IBANID', 'IBAN', 'PayeeAccountID') || valueOf('ID', section('PayeeFinancialAccount')));
+    assign('paymentMeansTypeCode', valueOf('PaymentMeansCode', paymentMeans) || valueOf('TypeCode', paymentMeans));
+    assign('paymentIban', firstOf('IBANID', 'IBAN', 'PayeeAccountID') || valueOf('ID', payeeAccount));
+    assign('paymentAccountName', valueOf('Name', payeeAccount) || valueOf('AccountName', payeeAccount));
+    assign('paymentServiceProviderId', valueOf('ID', financialInstitution) || valueOf('BICID', financialInstitution));
     assign('paymentTerms', firstOf('Note', 'PaymentTerms') || valueOf('Description', section('SpecifiedTradePaymentTerms')));
 
     assign('sellerName', valueOf('Name', supplierParty));
@@ -561,6 +656,7 @@
     assign('sellerIdentifier', valueOf('ID', section('PartyIdentification', supplierParty)) || valueOf('ID', supplierParty));
     assign('sellerVatId', valueOf('CompanyID', section('PartyTaxScheme', supplierParty)) || valueOf('ID', section('SpecifiedTaxRegistration', supplierParty)));
     assign('sellerTelephone', valueOf('Telephone', supplierContact) || valueOf('CompleteNumber', supplierContact));
+    assign('sellerContactEmail', valueOf('ElectronicMail', supplierContact) || valueOf('URIID', section('EmailURIUniversalCommunication', supplierContact)) || valueOf('URIID', section('EmailURIUniversalCommunication', supplierParty)) || fields.sellerEndpointId);
 
     assign('buyerName', valueOf('Name', customerParty));
     assign('buyerStreet', valueOf('StreetName', customerPostal) || valueOf('LineOne', customerPostal));
@@ -570,6 +666,7 @@
     assign('buyerEndpointId', valueOf('EndpointID', customerParty) || valueOf('URIID', section('URIUniversalCommunication', customerParty)));
     assign('buyerEndpointSchemeId', attrOf('EndpointID', 'schemeID', customerParty) || attrOf('URIID', 'schemeID', section('URIUniversalCommunication', customerParty)));
 
+    assign('lineId', valueOf('ID', section('InvoiceLine')) || valueOf('LineID', section('AssociatedDocumentLineDocument', firstLine)));
     assign('lineDescription', valueOf('Name', section('Item', firstLine)) || valueOf('Name', section('SpecifiedTradeProduct', firstLine)) || valueOf('Description', firstLine));
     assign('lineQuantity', valueOf('InvoicedQuantity', firstLine) || valueOf('BilledQuantity', firstLine));
     assign('lineUnitCode', attrOf('InvoicedQuantity', 'unitCode', firstLine) || attrOf('BilledQuantity', 'unitCode', firstLine));
@@ -1146,9 +1243,7 @@
   }
 
   function applyParsedFields(document, fields, fieldSources = {}) {
-    const assignments = {
-      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', currency: 'currency', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerStreet: 'sellerStreet', sellerPostalCode: 'sellerPostalCode', sellerCity: 'sellerCity', sellerCountry: 'sellerCountry', sellerVatId: 'sellerVatId', sellerEndpointId: 'sellerEndpointId', sellerEndpointSchemeId: 'sellerEndpointSchemeId', sellerIdentifier: 'sellerIdentifier', sellerTelephone: 'sellerTelephone', buyerName: 'buyerName', buyerStreet: 'buyerStreet', buyerPostalCode: 'buyerPostalCode', buyerCity: 'buyerCity', buyerCountry: 'buyerCountry', buyerEndpointId: 'buyerEndpointId', buyerEndpointSchemeId: 'buyerEndpointSchemeId', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineUnitCode: 'lineUnitCode', lineNetPrice: 'lineNetPrice', lineTaxPercent: 'lineTaxPercent',
-    };
+    const assignments = Object.fromEntries(FIELD_HELP.map((field) => [field.id, field.id]));
     const labels = Object.fromEntries([...getFormFieldBindings(), ...REQUIRED_FIELDS].map((field) => [field.id, field.catalogName || field.label || field.id]));
     const filled = [];
     for (const [key, id] of Object.entries(assignments)) {
@@ -1221,6 +1316,7 @@
   function generateInvoice(invoice, formatId) {
     const check = preflightInvoice(invoice, formatId);
     if (!check.ok) throw new Error(check.errors.join('\n'));
+    invoice = normalizeInvoice(invoice);
     const fmt = FORMATS[formatId];
     let content;
     if (formatId === 'xrechnung-ubl') content = generateUblXml(invoice, { xrechnung: true });
@@ -1279,6 +1375,10 @@
       bg: field.bg,
       groupName: field.groupName,
       required: requiredById.has(field.id),
+      requirementLevel: field.requirementLevel,
+      purpose: field.purpose,
+      fillHelp: field.fillHelp,
+      officialSource: field.officialSource,
     }));
   }
 
@@ -1305,7 +1405,8 @@
       transport,
       sourceText: String(options.sourceText || ''),
       existingFields: options.existingFields && typeof options.existingFields === 'object' ? cloneJson(options.existingFields) : {},
-      requiredFields: getRequiredFields(targetFormat).map((field) => ({ id: field.id, label: field.label, required: true })),
+      requiredFields: getRequiredFields(targetFormat).map((field) => ({ id: field.id, label: field.label, bt: field.bt, required: true, purpose: field.purpose, fillHelp: field.fillHelp, officialSource: field.officialSource })),
+      recommendedFields: getRecommendedFields(targetFormat).map((field) => ({ id: field.id, label: field.label, bt: field.bt, required: false, purpose: field.purpose, fillHelp: field.fillHelp, officialSource: field.officialSource })),
       fieldCatalog: agentFieldCatalogForRequest(),
       rules: {
         doNotInvent: true,
@@ -1391,19 +1492,24 @@
     return {
       invoiceNumber: value('invoiceNumber'),
       issueDate: value('issueDate'),
+      invoiceTypeCode: value('invoiceTypeCode') || '380',
       dueDate: value('dueDate'),
+      deliveryDate: value('deliveryDate'),
       currency: value('currency') || 'EUR',
       buyerReference: value('buyerReference'),
       orderNumber: value('orderNumber'),
       seller: {
-        name: value('sellerName'), street: value('sellerStreet'), postalCode: value('sellerPostalCode'), city: value('sellerCity'), country: value('sellerCountry') || 'DE', vatId: value('sellerVatId'), endpointId: value('sellerEndpointId'), endpointSchemeId: value('sellerEndpointSchemeId') || 'EM', sellerIdentifier: value('sellerIdentifier'), telephone: value('sellerTelephone'),
+        name: value('sellerName'), street: value('sellerStreet'), postalCode: value('sellerPostalCode'), city: value('sellerCity'), country: value('sellerCountry') || 'DE', vatId: value('sellerVatId'), endpointId: value('sellerEndpointId'), endpointSchemeId: value('sellerEndpointSchemeId') || 'EM', sellerIdentifier: value('sellerIdentifier'), telephone: value('sellerTelephone'), contactEmail: value('sellerContactEmail') || value('sellerEndpointId'),
       },
       buyer: {
         name: value('buyerName'), street: value('buyerStreet'), postalCode: value('buyerPostalCode'), city: value('buyerCity'), country: value('buyerCountry') || 'DE', endpointId: value('buyerEndpointId'), endpointSchemeId: value('buyerEndpointSchemeId') || 'EM',
       },
+      paymentMeansTypeCode: value('paymentMeansTypeCode') || '58',
       paymentIban: value('paymentIban'),
+      paymentAccountName: value('paymentAccountName'),
+      paymentServiceProviderId: value('paymentServiceProviderId'),
       paymentTerms: value('paymentTerms'),
-      lines: [{ description: value('lineDescription'), quantity: value('lineQuantity'), unitCode: value('lineUnitCode') || 'C62', netPrice: value('lineNetPrice'), taxCategory: 'S', taxPercent: value('lineTaxPercent') || '19' }],
+      lines: [{ id: value('lineId') || '1', description: value('lineDescription'), quantity: value('lineQuantity'), unitCode: value('lineUnitCode') || 'C62', netPrice: value('lineNetPrice'), taxCategory: 'S', taxPercent: value('lineTaxPercent') || '19' }],
     };
   }
 
@@ -1555,5 +1661,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, getAgentFieldFillSchema, buildAgentFieldFillRequest, validateAgentFieldFillResponse, buildHermesFieldFillPrompt, importAgentFieldFillResponse, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getRecommendedFields, getFieldHelpInfo, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, getAgentFieldFillSchema, buildAgentFieldFillRequest, validateAgentFieldFillResponse, buildHermesFieldFillPrompt, importAgentFieldFillResponse, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

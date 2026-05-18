@@ -114,9 +114,14 @@
             <div class="grid four">
               <label><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceNumber" data-bt="BT-1" data-bg="INVOICE" value="RE-2025-0001" required></label>
               <label><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="issueDate" data-bt="BT-2" data-bg="INVOICE" type="date" value="2025-01-15" required></label>
+              <label><span class="label-text">Rechnungsart-Code<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceTypeCode" data-bt="BT-3" data-bg="INVOICE" value="380" required></label>
               <label><span class="label-text">Fällig am<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="dueDate" data-bt="BT-9" data-bg="INVOICE" type="date" value="2025-02-01" required></label>
-              <label><span class="label-text">Währung</span> <input id="currency" data-bt="BT-5" data-bg="INVOICE" value="EUR" autocomplete="off"></label>
+              <label><span class="label-text">Leistungs-/Lieferdatum</span> <input id="deliveryDate" data-bt="BT-72" data-bg="BG-13" type="date" value="2025-01-15"></label>
+              <label><span class="label-text">Währung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="currency" data-bt="BT-5" data-bg="INVOICE" value="EUR" autocomplete="off" required></label>
+              <label><span class="label-text">Zahlungsart-Code<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentMeansTypeCode" data-bt="BT-81" data-bg="BG-16" value="58" required></label>
               <label><span class="label-text">IBAN<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentIban" data-bt="BT-84" data-bg="BG-17" value="DE00DEMO00000000000000" required></label>
+              <label><span class="label-text">Kontoinhaber</span> <input id="paymentAccountName" data-bt="BT-85" data-bg="BG-17" value="Beispiel Lieferant GmbH"></label>
+              <label><span class="label-text">BIC / Zahlungsdienstleister</span> <input id="paymentServiceProviderId" data-bt="BT-86" data-bg="BG-17" value="BEISDXXX"></label>
               <label><span class="label-text">Zahlungsbedingungen<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentTerms" data-bt="BT-20" data-bg="INVOICE" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
               <label><span class="label-text">Leitweg-ID / BuyerReference<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerReference" data-bt="BT-10" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
               <label><span class="label-text">Auftragsnummer / Bestellreferenz<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="orderNumber" data-bt="BT-13" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
@@ -135,6 +140,7 @@
               <label><span class="label-text">Seller Identifier<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerIdentifier" data-bt="BT-29" data-bg="BG-4" value="BEISPIEL-SELLER-ID" required></label>
               <label><span class="label-text">E-Mail / Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerEndpointId" data-bt="BT-34" data-bg="BG-4" value="seller@example.invalid" required></label>
               <label><span class="label-text">Telefon<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerTelephone" data-bt="BT-42" data-bg="BG-6" value="+49 30 123456" required></label>
+              <label><span class="label-text">Kontakt-E-Mail<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerContactEmail" data-bt="BT-43" data-bg="BG-6" value="seller@example.invalid" required></label>
               <label><span class="label-text">Endpoint schemeID</span> <input id="sellerEndpointSchemeId" data-bt="BT-34" data-bg="BG-4" value="EM"></label>
             </div>
           </fieldset>
@@ -147,7 +153,7 @@
               <label><span class="label-text">PLZ</span> <input id="buyerPostalCode" data-bt="BT-53" data-bg="BG-8" value="00000"></label>
               <label><span class="label-text">Stadt</span> <input id="buyerCity" data-bt="BT-52" data-bg="BG-8" value="Beispielstadt"></label>
               <label><span class="label-text">Land</span> <input id="buyerCountry" data-bt="BT-55" data-bg="BG-8" value="DE"></label>
-              <label><span class="label-text">Endpoint-ID</span> <input id="buyerEndpointId" data-bt="BT-49" data-bg="BG-7" value="buyer@example.invalid"></label>
+              <label><span class="label-text">Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerEndpointId" data-bt="BT-49" data-bg="BG-7" value="buyer@example.invalid" required></label>
               <label><span class="label-text">Endpoint schemeID</span> <input id="buyerEndpointSchemeId" data-bt="BT-49" data-bg="BG-7" value="EM"></label>
             </div>
           </fieldset>
@@ -155,9 +161,10 @@
           <fieldset>
             <legend>Position</legend>
             <div class="grid four">
+              <label><span class="label-text">Pos.-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineId" data-bt="BT-126" data-bg="BG-25" value="1" required></label>
               <label><span class="label-text">Beschreibung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineDescription" data-bt="BT-153" data-bg="BG-31" value="Beispiel Leistung" required></label>
               <label><span class="label-text">Menge<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineQuantity" data-bt="BT-129" data-bg="BG-25" value="1" inputmode="decimal" required></label>
-              <label><span class="label-text">Einheit</span> <input id="lineUnitCode" data-bt="BT-130" data-bg="BG-25" value="C62"></label>
+              <label><span class="label-text">Einheit<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineUnitCode" data-bt="BT-130" data-bg="BG-25" value="C62" required></label>
               <label><span class="label-text">Nettopreis<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineNetPrice" data-bt="BT-146" data-bg="BG-29" value="100.00" inputmode="decimal" required></label>
               <label><span class="label-text">MwSt %</span> <input id="lineTaxPercent" data-bt="BT-152" data-bg="BG-30" value="19" inputmode="decimal"></label>
             </div>
