@@ -1,0 +1,56 @@
+name: Feature request
+about: Propose a focused e-invoice, browser, extraction, or validator improvement.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please keep requests focused. If invoice examples are needed, use synthetic or anonymized data only.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - XRechnung UBL/CII
+        - Browser app / browser API
+        - Browser validation parity
+        - Local document extraction
+        - KoSIT / validator reports
+        - ZUGFeRD / Factur-X PDF/A-3
+        - Documentation / contributor workflow
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user workflow or validator gap does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Keep the solution local-first and explicit about validation status.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - Test covers ...
+        - Docs explain ...
+        - No invoice-data network/storage APIs are introduced.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: This does not require uploading invoice contents to a third-party server.
+          required: true
+        - label: This does not require legal/compliance guarantee wording.
+          required: true

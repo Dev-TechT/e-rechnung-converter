@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Roadmap
+    url: https://github.com/Dev-TechT/e-rechnung-converter/blob/main/ROADMAP.md
+    about: Check planned milestones and current project boundaries before opening broad requests.
+  - name: Browser app
+    url: https://dev-techt.github.io/e-rechnung-converter/
+    about: Try the static local-first browser app. Invoice contents are processed in the browser tab.

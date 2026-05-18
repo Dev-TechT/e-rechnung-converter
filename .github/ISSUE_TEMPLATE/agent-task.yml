@@ -1,0 +1,52 @@
+name: Agent-friendly task
+about: A small, scoped task suitable for humans or coding agents.
+title: "agent-task: "
+labels: [agent-friendly]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Agent tasks should be small, testable, and safe. Pick one behavior or one document boundary.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One focused outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Files or behavior that may be changed.
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      value: |
+        - No server upload for invoice contents.
+        - No legal/compliance guarantee wording.
+        - No unrelated refactor.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - Add/update test ...
+        - Update docs if support status changes.
+        - Generated artifacts remain candidates unless official validation passed.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification commands
+      placeholder: |
+        python3 -m pytest -q
+        node tests/webapp.test.js
+    validations:
+      required: true

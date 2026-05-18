@@ -2,6 +2,8 @@
 
 MIT-lizenziertes, local-first Produkt für Rechnung -> E-Rechnungs-Zielformate wie XRechnung UBL, XRechnung CII, ZUGFeRD PDF/A-3, Factur-X PDF/A-3 und generisches EN16931 UBL.
 
+Browser-App: https://dev-techt.github.io/e-rechnung-converter/
+
 Status: Produktaufbau, noch nicht rechts-/produktionsfertig ohne offizielle lokale Validatoren. Die Browser-App erzeugt XRechnung UBL, XRechnung CII, generisches EN16931 UBL sowie XML-Vorbereitungspakete für ZUGFeRD/Factur-X. Die lokale Python-CLI erzeugt aus strukturierten JSON/CSV-Eingaben XRechnung-UBL und kann den KoSIT Validator lokal ausführen.
 
 ## Lizenz und Mitarbeit
