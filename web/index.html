@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local E-Rechnung Converter Demo</title>
+  <meta name="description" content="Browser-only Demo für XRechnung-UBL-Kandidaten. Keine Uploads, keine Datenbank.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">Local-first · Keine Datenbank · Kein Upload</p>
+    <h1>E-Rechnung im Browser vorbereiten</h1>
+    <p>Diese Demo erzeugt lokal im Browser einen XRechnung-UBL-Kandidaten und prüft Pflichtfelder wie Leitweg-ID und Auftragsnummer. Für echte Einreichung muss die XML-Datei lokal mit KoSIT validiert werden.</p>
+    <nav>
+      <a href="#generator">Generator</a>
+      <a href="#privacy">Datenschutz</a>
+      <a href="#profile">Profil</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <h2>Wichtig</h2>
+      <p>Die Ablehnungsnachricht, Leitweg-ID und Auftragsnummer aus echten Vorgängen dürfen nicht als Demo-Daten verwendet werden. Diese Seite nutzt nur Platzhalter. Fehlende Leitweg-ID oder Auftragsnummer werden vor dem Download blockiert, damit man sie beim Empfänger nachfragen kann.</p>
+    </section>
+
+    <section id="generator" class="card">
+      <h2>Generator</h2>
+      <form id="invoiceForm">
+        <div class="grid two">
+          <label>Zielformat
+            <select id="format">
+              <option value="xrechnung-ubl">XRechnung UBL XML (Browser-Demo)</option>
+              <option value="xrechnung-cii">XRechnung CII XML (geplant)</option>
+              <option value="zugferd-pdf">ZUGFeRD PDF/A-3 (geplant)</option>
+              <option value="factur-x-pdf">Factur-X PDF/A-3 (geplant)</option>
+            </select>
+          </label>
+          <label>Währung
+            <input id="currency" value="EUR" autocomplete="off">
+          </label>
+        </div>
+        <pre id="validationPlan" class="plan"></pre>
+
+        <h3>Rechnung</h3>
+        <div class="grid four">
+          <label>Rechnungsnummer <input id="invoiceNumber" value="DEMO-2025-0001" required></label>
+          <label>Rechnungsdatum <input id="issueDate" type="date" value="2025-01-15" required></label>
+          <label>Fällig am <input id="dueDate" type="date" value="2025-02-01" required></label>
+          <label>IBAN <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
+        </div>
+        <div class="grid two">
+          <label>Leitweg-ID / BuyerReference <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
+          <label>Auftragsnummer / Bestellreferenz <input id="orderNumber" placeholder="Beim Empfänger erfragen" required></label>
+        </div>
+
+        <h3>Rechnungssteller</h3>
+        <div class="grid three">
+          <label>Name <input id="sellerName" value="Demo Lieferant GmbH" required></label>
+          <label>Straße <input id="sellerStreet" value="Musterstraße 1"></label>
+          <label>PLZ <input id="sellerPostalCode" value="10115"></label>
+          <label>Stadt <input id="sellerCity" value="Berlin"></label>
+          <label>Land <input id="sellerCountry" value="DE"></label>
+          <label>USt-ID <input id="sellerVatId" value="DEMO-VAT-ID"></label>
+          <label>Endpoint-ID <input id="sellerEndpointId" value="seller@example.invalid"></label>
+          <label>Endpoint schemeID <input id="sellerEndpointSchemeId" value="EM"></label>
+        </div>
+
+        <h3>Empfänger</h3>
+        <div class="grid three">
+          <label>Name <input id="buyerName" value="Demo Empfänger" required></label>
+          <label>Straße <input id="buyerStreet" value="Empfängerweg 1"></label>
+          <label>PLZ <input id="buyerPostalCode" value="00000"></label>
+          <label>Stadt <input id="buyerCity" value="Demostadt"></label>
+          <label>Land <input id="buyerCountry" value="DE"></label>
+          <label>Endpoint-ID <input id="buyerEndpointId" value="buyer@example.invalid"></label>
+          <label>Endpoint schemeID <input id="buyerEndpointSchemeId" value="EM"></label>
+        </div>
+
+        <h3>Position</h3>
+        <div class="grid four">
+          <label>Beschreibung <input id="lineDescription" value="Demo Leistung" required></label>
+          <label>Menge <input id="lineQuantity" value="1" inputmode="decimal" required></label>
+          <label>Einheit <input id="lineUnitCode" value="C62"></label>
+          <label>Nettopreis <input id="lineNetPrice" value="100.00" inputmode="decimal" required></label>
+          <label>MwSt % <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
+        </div>
+
+        <button type="submit">XML-Kandidat lokal erzeugen</button>
+      </form>
+      <pre id="result" class="result" hidden></pre>
+      <label>XML Vorschau
+        <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier der XML-Kandidat."></textarea>
+      </label>
+    </section>
+
+    <section id="privacy" class="card">
+      <h2>Datenschutzmodell</h2>
+      <ul>
+        <li>Keine Datenbank.</li>
+        <li>Keine Cookies.</li>
+        <li>Keine Uploads.</li>
+        <li>Keine Netzwerk-API im Generator-Code.</li>
+        <li>Daten leben nur im Formular/RAM des Browser-Tabs und in der heruntergeladenen Datei.</li>
+      </ul>
+      <p>GitHub Pages liefert nur HTML/CSS/JS aus. Die Rechnung wird lokal im Browser verarbeitet.</p>
+    </section>
+
+    <section id="profile" class="card">
+      <h2>Profil / Kontakt</h2>
+      <p>Ein Projekt von Dev-TechT / Antonios. Profil-Link kann hier ergänzt werden, sobald die Demo verifiziert und veröffentlicht ist.</p>
+      <p><a href="https://github.com/Dev-TechT" rel="me noopener">GitHub Profil Dev-TechT</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Demo, keine Rechts- oder Steuerberatung. Technische Validierung ersetzt nicht die fachliche Prüfung.</p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "project": "xrechnung-converter",
+  "date": "2026-05-18",
+  "workspace": "/home/neon/xrechnung-converter",
+  "status": "mvp-spike-with-format-catalog",
+  "decision": "build-greenfield-with-official-local-components",
+  "local_first_answer": "Conversion and validation can run locally/offline after validator artifacts are installed; invoice upload to the internet is not required by default.",
+  "official_components_checked": {
+    "kosit_validator": {
+      "repo": "https://github.com/itplr-kosit/validator",
+      "latest": "v1.6.2",
+      "asset": "validator-1.6.2-standalone.jar",
+      "role": "local XRechnung UBL/CII validation"
+    },
+    "validator_configuration_xrechnung": {
+      "repo": "https://github.com/itplr-kosit/validator-configuration-xrechnung",
+      "latest": "v2026-01-31",
+      "asset": "xrechnung-3.0.2-validator-configuration-2026-01-31.zip",
+      "role": "XRechnung 3.0.x schemas, Schematron, scenarios and codelists"
+    },
+    "xrechnung_visualization": {
+      "repo": "https://github.com/itplr-kosit/xrechnung-visualization",
+      "latest": "v2026-01-31",
+      "asset": "xrechnung-3.0.2-visualization-2026-01-31.zip",
+      "role": "local XSLT preview, not the invoice exchange format"
+    },
+    "mustangproject": {
+      "repo": "https://github.com/ZUGFeRD/mustangproject",
+      "latest": "core-2.23.0",
+      "role": "local ZUGFeRD/Factur-X/CII generation, parsing and validation candidate"
+    },
+    "verapdf": {
+      "repo": "https://github.com/veraPDF/veraPDF-apps",
+      "role": "local PDF/A-3 carrier validation for ZUGFeRD/Factur-X"
+    },
+    "e_invoice_eu": {
+      "repo": "https://github.com/gflohr/e-invoice-eu",
+      "role": "possible OSS generator/reference for JSON/spreadsheet to Factur-X/ZUGFeRD/UBL/CII/XRechnung; license/quality needs final direct review"
+    }
+  },
+  "supported_output_format_catalog": [
+    "xrechnung-ubl",
+    "xrechnung-cii",
+    "zugferd-pdf",
+    "factur-x-pdf",
+    "ubl"
+  ],
+  "implemented": [
+    "canonical invoice dataclasses",
+    "minimal UBL XML candidate exporter",
+    "output format catalog for XRechnung UBL, XRechnung CII, ZUGFeRD PDF/A-3, Factur-X PDF/A-3, generic UBL",
+    "CLI --output-format",
+    "CLI --print-validation-plan",
+    "JSON and CSV CLI input",
+    "basic sanity validator",
+    "KoSIT validator hook",
+    "examples",
+    "research/GDPR/format workflow/plan docs",
+    "static browser demo under web/ with no database, no uploads and no persistence APIs"
+  ],
+  "verified_commands": [
+    ". .venv/bin/activate && pytest -q -> 11 passed",
+    "node tests/webapp.test.js -> 4 ok checks",
+    "with_server.py HTTP smoke for /web/, /web/app.js and /web/styles.css -> 200 OK",
+    "static source smoke -> no localStorage/sessionStorage/indexedDB/fetch/XMLHttpRequest/WebSocket in web/app.js",
+    ". .venv/bin/activate && xrechnung-converter examples/minimal-invoice.json -o out/minimal-invoice.xml --output-format xrechnung-ubl -> ok true basic",
+    ". .venv/bin/activate && xrechnung-converter examples/minimal-invoice.csv -o out/minimal-invoice-csv.xml --output-format xrechnung-ubl -> ok true basic"
+  ],
+  "next_task": "Bootstrap KoSIT/Mustang/veraPDF artifacts locally, then make xrechnung-ubl pass official KoSIT validation before adding CII and PDF/A-3 exporters.",
+  "blockers": [
+    "Current xrechnung-ubl output only passes local basic sanity checks, not yet official KoSIT validation.",
+    "xrechnung-cii, zugferd-pdf, factur-x-pdf and generic ubl are cataloged/planned but not generated yet.",
+    "Browser demo cannot run official KoSIT/Mustang/veraPDF validation inside GitHub Pages; production flow still needs local CLI/native validator artifacts.",
+    "PDF/DOC/DOCX/TXT extraction not implemented yet; architecture requires human review for uncertain extraction."
+  ]
+}

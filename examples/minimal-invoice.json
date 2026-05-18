@@ -1,0 +1,37 @@
+{
+  "invoice_number": "RE-2026-0001",
+  "issue_date": "2026-05-18",
+  "due_date": "2026-06-01",
+  "currency": "EUR",
+  "buyer_reference": "DEMO-LEITWEG-ID",
+  "seller": {
+    "name": "Demo Lieferant GmbH",
+    "street": "Hauptstr. 1",
+    "city": "Berlin",
+    "postal_code": "10115",
+    "country": "DE",
+    "vat_id": "DEMO-VAT-ID",
+    "endpoint_id": "seller@example.invalid",
+    "endpoint_scheme_id": "EM"
+  },
+  "buyer": {
+    "name": "Demo Empfänger",
+    "street": "Empfängerweg 1",
+    "city": "Demostadt",
+    "postal_code": "00000",
+    "country": "DE",
+    "endpoint_id": "buyer@example.invalid",
+    "endpoint_scheme_id": "EM"
+  },
+  "payment_iban": "DE00DEMO00000000000000",
+  "lines": [
+    {
+      "description": "Beratungsleistung",
+      "quantity": "2",
+      "unit_code": "HUR",
+      "net_price": "100.00",
+      "tax_category": "S",
+      "tax_percent": "19"
+    }
+  ]
+}
