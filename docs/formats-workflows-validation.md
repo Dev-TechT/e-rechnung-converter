@@ -49,7 +49,12 @@ Validierung lokal: wie ZUGFeRD.
 
 ## Neue auswählbare Formate im Produkt
 
-Im Code ist jetzt ein Formatkatalog vorbereitet:
+Im Code gibt es einen Formatkatalog und zwei Implementierungsstufen:
+
+- Lokale Python-CLI: aktuell `xrechnung-ubl` als Kandidaten-Export plus Validierungspläne für die weiteren Formate.
+- Browser-App: erzeugt `xrechnung-ubl`, `xrechnung-cii`, `ubl` sowie XML-Vorbereitungspakete für `zugferd-pdf` und `factur-x-pdf`. Die Browser-Pakete sind bewusst keine echten PDFs; PDF/A-3-Montage und amtliche Validierung bleiben lokale Native-Tool-Schritte.
+
+Formate:
 
 - `xrechnung-ubl`: XRechnung UBL XML
 - `xrechnung-cii`: XRechnung CII XML
@@ -57,7 +62,7 @@ Im Code ist jetzt ein Formatkatalog vorbereitet:
 - `factur-x-pdf`: Factur-X PDF/A-3
 - `ubl`: generisches EN16931 UBL XML, später optional Peppol BIS
 
-Aktuell implementiert ist nur `xrechnung-ubl` als Kandidaten-Export. Die anderen Formate sind im Workflow/Validierungsplan sichtbar und bewusst als geplant markiert.
+Pflichtfeldlogik im Browser blockiert Konvertierung, wenn u.a. Leitweg-ID, Bankdaten/IBAN, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Seller Identifier, Auftragsnummer/Bestellreferenz oder Positionsdaten fehlen.
 
 CLI:
 
@@ -255,9 +260,11 @@ Hinzugefügt:
 - CLI-Option `--output-format`
 - CLI-Option `--print-validation-plan`
 - Tests für Formatkatalog und CLI-Hilfe
+- Browser-App unter `web/` mit XRechnung UBL, XRechnung CII, generischem EN16931 UBL und XML-Vorbereitungspaketen für ZUGFeRD/Factur-X
+- Browser-Agent-API `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern und Browser-Sanity-Validierung
 
 Noch nicht implementiert:
-- echte CII-Erzeugung
-- echte ZUGFeRD/Factur-X PDF/A-3-Erzeugung
+- CII/PDF/A-3-Erzeugung in der Python-CLI/Core-Bibliothek
+- echte ZUGFeRD/Factur-X PDF/A-3-Erzeugung; Browser erzeugt nur ein XML-Vorbereitungspaket, kein PDF
 - veraPDF/Mustang-Bootstrap
 - KoSIT-Bootstrap und echte offizielle Validierung

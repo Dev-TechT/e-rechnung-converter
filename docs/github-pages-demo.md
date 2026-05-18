@@ -17,7 +17,7 @@ Das passt zu DSGVO/Privacy-first besser als ein SaaS-Upload-Konverter. GitHub ho
 
 ## Grenzen
 
-Die Web-Demo erzeugt aktuell nur einen XRechnung-UBL-Kandidaten. Sie ist kein amtlicher Validator.
+Die Web-App erzeugt im Browser XRechnung UBL, XRechnung CII, generisches EN16931 UBL und XML-Vorbereitungspakete für ZUGFeRD/Factur-X. Für ZUGFeRD/Factur-X erzeugt sie absichtlich kein Fake-PDF; das Browser-Paket enthält CII-XML plus Montage-/Validierungshinweise für lokale PDF/A-3-Tools.
 
 Für echte Einreichung gilt:
 
@@ -29,7 +29,7 @@ Für echte Einreichung gilt:
 
 Ein Empfänger kann Rechnungen ablehnen, wenn nur ein normales PDF geschickt wird oder Pflichtangaben fehlen. Viele öffentliche Empfänger fordern z.B. XRechnung oder ZUGFeRD und zusätzlich Leitweg-ID/Auftragsnummer.
 
-Die Demo blockiert deshalb den Download, wenn Leitweg-ID oder Auftragsnummer fehlen. Die echten Werte müssen beim Empfänger erfragt und dürfen nicht aus Beispieltexten übernommen werden.
+Die Demo blockiert deshalb den Download, wenn Pflichtfelder wie Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail, Seller Identifier oder Auftragsnummer fehlen. Die echten Werte müssen beim Empfänger erfragt und dürfen nicht aus Beispieltexten übernommen werden.
 
 ## Lokale Prüfung
 

@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Local E-Rechnung Converter Demo</title>
-  <meta name="description" content="Browser-only Demo für XRechnung-UBL-Kandidaten. Keine Uploads, keine Datenbank.">
+  <title>Local E-Rechnung Converter</title>
+  <meta name="description" content="Browser-only Converter für XRechnung UBL, XRechnung CII, UBL und lokale ZUGFeRD/Factur-X-Vorbereitung. Keine Uploads, keine Datenbank.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="hero">
     <p class="eyebrow">Local-first · Keine Datenbank · Kein Upload</p>
     <h1>E-Rechnung im Browser vorbereiten</h1>
-    <p>Diese Demo erzeugt lokal im Browser einen XRechnung-UBL-Kandidaten und prüft Pflichtfelder wie Leitweg-ID und Auftragsnummer. Für echte Einreichung muss die XML-Datei lokal mit KoSIT validiert werden.</p>
+    <p>Der Converter erzeugt lokal im Browser XRechnung UBL, XRechnung CII, generisches EN16931 UBL und vorbereitende XML-Pakete für ZUGFeRD/Factur-X. Pflichtfelder wie Leitweg-ID, Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail, Seller Identifier und Auftragsnummer sind mit * markiert; wenn sie fehlen, wird nicht konvertiert. Nach der Erzeugung läuft eine Browser-Sanity-Validierung. Für echte Einreichung bleiben lokale KoSIT-/Mustang-/veraPDF-Prüfungen nötig.</p>
     <nav>
       <a href="#generator">Generator</a>
       <a href="#privacy">Datenschutz</a>
@@ -31,10 +31,11 @@
         <div class="grid two">
           <label>Zielformat
             <select id="format">
-              <option value="xrechnung-ubl">XRechnung UBL XML (Browser-Demo)</option>
-              <option value="xrechnung-cii">XRechnung CII XML (geplant)</option>
-              <option value="zugferd-pdf">ZUGFeRD PDF/A-3 (geplant)</option>
-              <option value="factur-x-pdf">Factur-X PDF/A-3 (geplant)</option>
+              <option value="xrechnung-ubl">XRechnung UBL XML</option>
+              <option value="xrechnung-cii">XRechnung CII XML</option>
+              <option value="ubl">Generisches EN16931 UBL XML</option>
+              <option value="zugferd-pdf">ZUGFeRD Browser-Paket für lokale PDF/A-3-Montage</option>
+              <option value="factur-x-pdf">Factur-X Browser-Paket für lokale PDF/A-3-Montage</option>
             </select>
           </label>
           <label>Währung
@@ -49,6 +50,7 @@
           <label>Rechnungsdatum <input id="issueDate" type="date" value="2025-01-15" required></label>
           <label>Fällig am <input id="dueDate" type="date" value="2025-02-01" required></label>
           <label>IBAN <input id="paymentIban" value="DE00DEMO00000000000000" required></label>
+          <label>Zahlungsbedingungen <input id="paymentTerms" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
         </div>
         <div class="grid two">
           <label>Leitweg-ID / BuyerReference <input id="buyerReference" placeholder="Beim Empfänger erfragen" required></label>
@@ -63,7 +65,8 @@
           <label>Stadt <input id="sellerCity" value="Berlin"></label>
           <label>Land <input id="sellerCountry" value="DE"></label>
           <label>USt-ID <input id="sellerVatId" value="DEMO-VAT-ID"></label>
-          <label>Endpoint-ID <input id="sellerEndpointId" value="seller@example.invalid"></label>
+          <label>Seller Identifier <input id="sellerIdentifier" value="DEMO-SELLER-ID" required></label>
+          <label>E-Mail / Endpoint-ID <input id="sellerEndpointId" value="seller@example.invalid" required></label>
           <label>Endpoint schemeID <input id="sellerEndpointSchemeId" value="EM"></label>
         </div>
 
@@ -87,11 +90,11 @@
           <label>MwSt % <input id="lineTaxPercent" value="19" inputmode="decimal"></label>
         </div>
 
-        <button type="submit">XML-Kandidat lokal erzeugen</button>
+        <button type="submit">Artefakt lokal erzeugen und prüfen</button>
       </form>
       <pre id="result" class="result" hidden></pre>
-      <label>XML Vorschau
-        <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier der XML-Kandidat."></textarea>
+      <label>Artefakt Vorschau
+        <textarea id="xmlPreview" rows="16" readonly placeholder="Nach dem Erzeugen erscheint hier das XML-Artefakt."></textarea>
       </label>
     </section>
 
@@ -104,7 +107,7 @@
         <li>Keine Netzwerk-API im Generator-Code.</li>
         <li>Daten leben nur im Formular/RAM des Browser-Tabs und in der heruntergeladenen Datei.</li>
       </ul>
-      <p>GitHub Pages liefert nur HTML/CSS/JS aus. Die Rechnung wird lokal im Browser verarbeitet.</p>
+      <p>GitHub Pages liefert nur HTML/CSS/JS aus. Die Rechnung wird lokal im Browser verarbeitet. Für andere Agenten/LLMs steht `window.XInvoice.convertForAgent(invoice, formatId)` als strukturierte Browser-API bereit; sie gibt entweder Fehler zu fehlenden Pflichtfeldern oder ein erzeugtes Artefakt plus Browser-Validierungsbericht zurück.</p>
     </section>
 
     <section id="profile" class="card">
@@ -115,7 +118,7 @@
   </main>
 
   <footer>
-    <p>Demo, keine Rechts- oder Steuerberatung. Technische Validierung ersetzt nicht die fachliche Prüfung.</p>
+    <p>Keine Rechts- oder Steuerberatung. Die Browser-Sanity-Validierung ersetzt nicht KoSIT, Mustangproject, veraPDF oder die fachliche Prüfung.</p>
   </footer>
   <script src="app.js"></script>
 </body>

@@ -56,21 +56,31 @@
     "KoSIT validator hook",
     "examples",
     "research/GDPR/format workflow/plan docs",
-    "static browser demo under web/ with no database, no uploads and no persistence APIs"
+    "static browser app under web/ with no database, no uploads and no persistence APIs",
+    "browser generation for xrechnung-ubl, xrechnung-cii, generic ubl and XML preparation packages for zugferd/factur-x",
+    "machine-readable window.XInvoice.convertForAgent API with structured errors and browser validation reports"
   ],
   "verified_commands": [
     ". .venv/bin/activate && pytest -q -> 11 passed",
-    "node tests/webapp.test.js -> 4 ok checks",
+    "node tests/webapp.test.js -> 13 ok checks",
     "with_server.py HTTP smoke for /web/, /web/app.js and /web/styles.css -> 200 OK",
     "static source smoke -> no localStorage/sessionStorage/indexedDB/fetch/XMLHttpRequest/WebSocket in web/app.js",
     ". .venv/bin/activate && xrechnung-converter examples/minimal-invoice.json -o out/minimal-invoice.xml --output-format xrechnung-ubl -> ok true basic",
     ". .venv/bin/activate && xrechnung-converter examples/minimal-invoice.csv -o out/minimal-invoice-csv.xml --output-format xrechnung-ubl -> ok true basic"
   ],
-  "next_task": "Bootstrap KoSIT/Mustang/veraPDF artifacts locally, then make xrechnung-ubl pass official KoSIT validation before adding CII and PDF/A-3 exporters.",
+  "next_task": "Bootstrap KoSIT/Mustang/veraPDF artifacts locally, then make xrechnung-ubl and xrechnung-cii pass official KoSIT validation and add native PDF/A-3 assembly for ZUGFeRD/Factur-X.",
+  "required_field_policy": [
+    "Leitweg-ID / BuyerReference",
+    "Bank details / IBAN",
+    "Payment terms",
+    "Invoice issuer email / endpoint ID",
+    "Seller identifier",
+    "Purchase order reference / order number",
+    "Invoice metadata and line data"
+  ],
   "blockers": [
-    "Current xrechnung-ubl output only passes local basic sanity checks, not yet official KoSIT validation.",
-    "xrechnung-cii, zugferd-pdf, factur-x-pdf and generic ubl are cataloged/planned but not generated yet.",
-    "Browser demo cannot run official KoSIT/Mustang/veraPDF validation inside GitHub Pages; production flow still needs local CLI/native validator artifacts.",
+    "Current CLI xrechnung-ubl output only passes local basic sanity checks, not yet official KoSIT validation.",
+    "Browser app runs sanity validation during generation, but cannot run official KoSIT/Mustang/veraPDF validation inside GitHub Pages; production flow still needs local CLI/native validator artifacts.",
     "PDF/DOC/DOCX/TXT extraction not implemented yet; architecture requires human review for uncertain extraction."
   ]
 }

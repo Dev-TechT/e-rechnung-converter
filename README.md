@@ -2,7 +2,7 @@
 
 Local-first Prototyp für Rechnung -> E-Rechnungs-Zielformate wie XRechnung UBL, XRechnung CII, ZUGFeRD PDF/A-3, Factur-X PDF/A-3 und generisches UBL.
 
-Status: MVP/Spike, nicht produktionsreif. Erzeugt aktuell strukturierte JSON/CSV-Eingaben nur zu einem XRechnung-UBL-Kandidaten und führt schnelle Basiskontrollen aus. Die anderen Zielformate sind als auswählbare Workflows/Validierungspläne vorbereitet, aber noch nicht als Exporter implementiert. Offizielle KoSIT-/Mustang-/veraPDF-Validierung muss mit lokalen Artefakten gepinnt und ausgeführt werden.
+Status: MVP/Spike, nicht produktionsreif. Die lokale Python-CLI erzeugt derzeit aus strukturierten JSON/CSV-Eingaben einen XRechnung-UBL-Kandidaten und zeigt für weitere Formate Validierungspläne. Die Browser-App erzeugt zusätzlich XRechnung CII, generisches EN16931 UBL sowie XML-Vorbereitungspakete für ZUGFeRD/Factur-X. Offizielle KoSIT-/Mustang-/veraPDF-Validierung muss mit lokalen Artefakten gepinnt und ausgeführt werden.
 
 Warum greenfield:
 - Es gibt gute Bausteine, aber kein reifes OSS-Komplettprodukt für beliebige PDF/DOC/DOCX/TXT/CSV/XML -> valide XRechnung.
@@ -33,7 +33,7 @@ python3 -m http.server 8124 --bind 127.0.0.1
 # öffnen: http://127.0.0.1:8124/web/
 ```
 
-Die Browser-Demo nutzt keine Datenbank, keine Cookies und keine Uploads. Sie erzeugt aktuell nur einen XRechnung-UBL-Kandidaten im Browser. Leitweg-ID und Auftragsnummer sind Pflichtfelder; echte Werte müssen beim Empfänger erfragt werden.
+Die Browser-App nutzt keine Datenbank, keine Cookies und keine Uploads. Sie erzeugt aktuell XRechnung UBL, XRechnung CII, generisches EN16931 UBL sowie XML-Vorbereitungspakete für ZUGFeRD/Factur-X. Pflichtfelder sind mit `*` markiert; fehlt eines davon, wird nicht konvertiert. Dazu zählen Leitweg-ID, IBAN/Bankdaten, Zahlungsbedingungen, Rechnungssteller-E-Mail/Endpoint-ID, Seller Identifier, Auftragsnummer/Bestellreferenz und Positionsdaten. Für andere Agenten/LLMs gibt es `window.XInvoice.convertForAgent(invoice, formatId)` mit strukturierten Fehlern oder Artefakten plus Browser-Validierungsbericht.
 
 Tests:
 
