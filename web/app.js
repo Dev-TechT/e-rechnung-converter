@@ -1,12 +1,16 @@
 (function (root, factory) {
   let fieldCatalog = root.XRECHNUNG_FIELD_CATALOG;
+  let agentFieldFillSchema = root.XINVOICE_AGENT_FIELD_FILL_SCHEMA;
   if (!fieldCatalog && typeof require === 'function') {
     try { fieldCatalog = require('./xrechnung-field-catalog.js'); } catch (error) { fieldCatalog = null; }
   }
-  const api = factory(fieldCatalog);
+  if (!agentFieldFillSchema && typeof require === 'function') {
+    try { agentFieldFillSchema = require('./ai-agent-schema.js'); } catch (error) { agentFieldFillSchema = null; }
+  }
+  const api = factory(fieldCatalog, agentFieldFillSchema);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.XInvoice = api;
-})(typeof globalThis !== 'undefined' ? globalThis : window, function (fieldCatalog) {
+})(typeof globalThis !== 'undefined' ? globalThis : window, function (fieldCatalog, agentFieldFillSchema) {
   'use strict';
 
   const REQUIRED_FIELDS = [
@@ -1244,6 +1248,112 @@
     return { ok: true, errors: [], warnings: check.warnings, artifact, validationPlan: artifact.validationPlan, requiredFields: getRequiredFields(formatId) };
   }
 
+  const AGENT_FIELD_FILL_SCHEMA = agentFieldFillSchema || {
+    version: '2026-05-18',
+    task: 'fill_xrechnung_invoice_fields',
+    locale: 'de-DE',
+    connectionPolicy: {
+      noApiKeyInBrowser: true,
+      secretsInFrontend: false,
+      allowedModes: ['hermes-copy-paste', 'local-hermes-bridge', 'secure-inbox-outbox'],
+      forbiddenModes: ['browser-byok', 'direct-cloud-api-key', 'frontend-bearer-token'],
+    },
+    securityRules: ['no-api-key-in-browser', 'do-not-invent-values', 'return-only-json', 'source-required-per-field', 'confidence-required-per-field', 'human-review-required'],
+    responseContract: { fieldObjectRequiredKeys: ['value', 'confidence', 'source', 'reviewRequired'] },
+  };
+
+  function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function getAgentFieldFillSchema() {
+    return cloneJson(AGENT_FIELD_FILL_SCHEMA);
+  }
+
+  function agentFieldCatalogForRequest() {
+    const requiredById = new Set(REQUIRED_FIELDS.map((field) => field.id));
+    return getFormFieldBindings().map((field) => ({
+      id: field.id,
+      label: field.catalogName || field.label || field.id,
+      bt: field.bt,
+      bg: field.bg,
+      groupName: field.groupName,
+      required: requiredById.has(field.id),
+    }));
+  }
+
+  function buildAgentFieldFillRequest(options = {}) {
+    const schema = getAgentFieldFillSchema();
+    const transport = String(options.transport || 'hermes-copy-paste');
+    if (!schema.connectionPolicy.allowedModes.includes(transport)) {
+      const isBrowserKeyMode = /byok|api-key|bearer|cloud/i.test(transport);
+      return {
+        ok: false,
+        errors: [isBrowserKeyMode
+          ? 'API-Key im Browser ist für diese App verboten. Nutze hermes-copy-paste, local-hermes-bridge oder secure-inbox-outbox.'
+          : `Nicht erlaubter Agent-Transport: ${transport}`],
+      };
+    }
+    const targetFormat = options.targetFormat || 'xrechnung-ubl';
+    if (!FORMATS[targetFormat]) return { ok: false, errors: [`Unbekanntes Zielformat: ${targetFormat}`] };
+    const payload = {
+      task: schema.task,
+      version: schema.version,
+      locale: options.locale || schema.locale || 'de-DE',
+      targetFormat,
+      documentKind: options.documentKind || 'manual',
+      transport,
+      sourceText: String(options.sourceText || ''),
+      existingFields: options.existingFields && typeof options.existingFields === 'object' ? cloneJson(options.existingFields) : {},
+      requiredFields: getRequiredFields(targetFormat).map((field) => ({ id: field.id, label: field.label, required: true })),
+      fieldCatalog: agentFieldCatalogForRequest(),
+      rules: {
+        doNotInvent: true,
+        returnOnlyJson: true,
+        humanReviewRequired: true,
+        markUncertainFields: true,
+        sourceRequiredPerField: true,
+        confidenceRequiredPerField: true,
+      },
+      connectionPolicy: schema.connectionPolicy,
+      responseContract: schema.responseContract,
+    };
+    return { ok: true, errors: [], payload };
+  }
+
+  function validateAgentFieldFillResponse(response) {
+    const errors = [];
+    const normalized = { ok: Boolean(response?.ok), fields: {}, missingRequired: [], warnings: [], cannotDetermine: [] };
+    if (!response || typeof response !== 'object') return { ok: false, errors: ['Agent-Antwort muss ein JSON-Objekt sein.'] };
+    if (response.ok !== true) errors.push('Agent-Antwort muss ok=true setzen, wenn Felder vorgeschlagen werden.');
+    if (!response.fields || typeof response.fields !== 'object' || Array.isArray(response.fields)) {
+      errors.push('Agent-Antwort braucht fields als Objekt.');
+    } else {
+      for (const [field, candidate] of Object.entries(response.fields)) {
+        if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+          errors.push(`${field}: Feldvorschlag muss ein Objekt sein.`);
+          continue;
+        }
+        const value = candidate.value == null ? '' : String(candidate.value).trim();
+        const source = candidate.source == null ? '' : String(candidate.source).trim();
+        const confidence = Number(candidate.confidence);
+        if (!value) errors.push(`${field}: value fehlt.`);
+        if (!source) errors.push(`${field}: source fehlt.`);
+        if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) errors.push(`${field}: confidence muss Zahl zwischen 0 und 1 sein.`);
+        if (typeof candidate.reviewRequired !== 'boolean') errors.push(`${field}: reviewRequired muss boolean sein.`);
+        if (value && source && Number.isFinite(confidence) && typeof candidate.reviewRequired === 'boolean') {
+          normalized.fields[field] = { value, confidence, source, reviewRequired: candidate.reviewRequired };
+        }
+      }
+    }
+    normalized.missingRequired = Array.isArray(response.missingRequired) ? response.missingRequired.map(String) : [];
+    normalized.warnings = Array.isArray(response.warnings) ? response.warnings.map(String) : [];
+    normalized.cannotDetermine = Array.isArray(response.cannotDetermine)
+      ? response.cannotDetermine.map((entry) => ({ field: String(entry?.field || ''), reason: String(entry?.reason || '') })).filter((entry) => entry.field && entry.reason)
+      : [];
+    return { ok: errors.length === 0, errors, normalized };
+  }
+
   function collectInvoiceFromDom(document) {
     const value = (id) => document.getElementById(id)?.value?.trim() || '';
     return {
@@ -1377,5 +1487,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, getAgentFieldFillSchema, buildAgentFieldFillRequest, validateAgentFieldFillResponse, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });

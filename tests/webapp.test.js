@@ -952,6 +952,68 @@ test('agent API returns structured errors instead of converting invalid invoices
   assert(result.errors.some((error) => error.includes('Leitweg-ID')), 'missing Leitweg-ID error');
 });
 
+test('AI field-fill schema exposes Hermes-only no-api-key connection policy', () => {
+  const schema = app.getAgentFieldFillSchema();
+  assert(schema.task === 'fill_xrechnung_invoice_fields', 'schema task mismatch');
+  assert(schema.connectionPolicy.noApiKeyInBrowser === true, 'browser API keys must be forbidden');
+  assert(schema.connectionPolicy.secretsInFrontend === false, 'frontend must not hold secrets');
+  assert(schema.connectionPolicy.allowedModes.includes('hermes-copy-paste'), 'Hermes copy/paste mode missing');
+  assert(schema.connectionPolicy.allowedModes.includes('local-hermes-bridge'), 'local Hermes bridge mode missing');
+  assert(schema.connectionPolicy.allowedModes.includes('secure-inbox-outbox'), 'secure inbox/outbox mode missing');
+  assert(!schema.connectionPolicy.allowedModes.includes('browser-byok'), 'browser BYOK must not be allowed');
+  assert(schema.securityRules.includes('human-review-required'), 'human review rule missing');
+});
+
+test('AI field-fill request packages source text, required fields and XRechnung catalog for Hermes', () => {
+  const request = app.buildAgentFieldFillRequest({
+    targetFormat: 'xrechnung-cii',
+    documentKind: 'pdf_text',
+    sourceText: 'Rechnung 2026-021\nLeitweg-ID 09-9115114-11\nAuftragsnummer A-70764-708',
+    existingFields: { invoiceNumber: '2026-021' },
+    transport: 'hermes-copy-paste',
+  });
+  assert(request.ok === true, 'request should be created');
+  assert(request.payload.task === 'fill_xrechnung_invoice_fields', 'task mismatch');
+  assert(request.payload.targetFormat === 'xrechnung-cii', 'target format mismatch');
+  assert(request.payload.transport === 'hermes-copy-paste', 'transport mismatch');
+  assert(request.payload.rules.doNotInvent === true, 'do-not-invent rule missing');
+  assert(request.payload.rules.returnOnlyJson === true, 'return-only-json rule missing');
+  assert(request.payload.connectionPolicy.noApiKeyInBrowser === true, 'request must include no-api-key policy');
+  assert(request.payload.requiredFields.some((field) => field.id === 'buyerReference'), 'required BuyerReference field missing');
+  assert(request.payload.fieldCatalog.some((field) => field.id === 'buyerReference' && field.bt === 'BT-10'), 'BT/BG field mapping missing');
+});
+
+test('AI field-fill response validation rejects ungrounded or unsafe agent output', () => {
+  let result = app.validateAgentFieldFillResponse({
+    ok: true,
+    fields: {
+      invoiceNumber: { value: '2026-021', confidence: 0.98, source: 'Rechnung 2026-021', reviewRequired: false },
+      buyerReference: { value: '09-9115114-11', confidence: 0.91, source: 'Leitweg-ID 09-9115114-11', reviewRequired: true },
+    },
+    missingRequired: ['sellerTelephone'],
+    warnings: ['Telefon nicht gefunden'],
+    cannotDetermine: [{ field: 'sellerTelephone', reason: 'Nicht in Quelle gefunden' }],
+  });
+  assert(result.ok === true, 'grounded response should validate');
+  assert(result.normalized.fields.invoiceNumber.value === '2026-021', 'normalized invoice number missing');
+
+  result = app.validateAgentFieldFillResponse({ ok: true, fields: { invoiceNumber: { value: '2026-021' } } });
+  assert(result.ok === false, 'ungrounded field must be rejected');
+  assert(result.errors.some((error) => error.includes('source')), 'missing source error expected');
+
+  result = app.buildAgentFieldFillRequest({ transport: 'browser-byok', sourceText: 'test' });
+  assert(result.ok === false, 'browser BYOK transport must be rejected');
+  assert(result.errors.some((error) => error.includes('API-Key')), 'browser API key rejection should be explicit');
+});
+
+test('AI field-fill documentation records Hermes/local bridge and secure inbox-outbox without browser API keys', () => {
+  const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'ai-agent-fieldfill.md'), 'utf8');
+  for (const needle of ['Lokaler Hermes-Bridge-Service', 'hermes-copy-paste', 'local-hermes-bridge', 'secure-inbox-outbox', 'IMAP/SMTP-artig', 'Job-ID', 'Nonce']) {
+    assert(doc.includes(needle), `missing AI fieldfill doc section: ${needle}`);
+  }
+  assert(!/Browser-BYOK|Bring your own key|API-Key im Browser/i.test(doc), 'documentation must not propose browser API keys');
+});
+
 test('responsive type scale keeps hero and privacy copy compact', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
   assert(css.includes('h1 { font-size: clamp(2.15rem, 4.8vw, 4.9rem)'), 'h1 type scale should be reduced');
