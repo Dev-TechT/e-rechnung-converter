@@ -108,3 +108,7 @@ PDF-Erkennung kann ebenfalls teilweise auf der Hardware des Benutzers laufen: di
 KoSIT komplett im Browser ist technisch nicht der beste erste Schritt. Der offizielle KoSIT Validator ist Java-basiert; ein echter Browser-Port bräuchte JVM/WebAssembly, Dateisystem-Emulation, Validator-JAR, XRechnung-Konfigurations-ZIPs, Schematron/XSLT und Report-Plumbing. Realistischer ist die browsernative Route: XML-Parsing, XSD via WASM, Schematron/XSLT im Browser, Codelisten und ein KoSIT-CLI-Paritätskorpus. Bis diese Parität nachgewiesen ist, bleibt KoSIT CLI die Referenz.
 
 Die offizielle KoSIT-Validierung bleibt der Goldstandard für Einreichungsclaims. Praktisch und wartbar läuft sie heute lokal als CLI/Desktop-Schritt. Die Browser-App baut deshalb schrittweise eine lokale Validierung auf Basis derselben XRechnung-Artefakte auf und muss ihre Ergebnisse gegen KoSIT CLI vergleichen, bevor sie stärkere Browser-Validierungsclaims bekommt.
+
+---
+
+*This project welcomes contributions!*
