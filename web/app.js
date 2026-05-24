@@ -249,6 +249,16 @@
     for (const binding of getFormFieldBindings()) {
       const input = document.getElementById(binding.id);
       if (!input) continue;
+      if (input.value && !input.dataset.source && input.dataset.userConfirmed !== 'true' && !input.dataset.defaultValue) input.dataset.defaultValue = 'true';
+      if (!input.dataset.defaultListenerAttached && typeof input.addEventListener === 'function') {
+        const confirmValue = () => {
+          if (input.dataset.defaultValue === 'true') delete input.dataset.defaultValue;
+          input.dataset.userConfirmed = 'true';
+        };
+        input.addEventListener('input', confirmValue);
+        input.addEventListener('change', confirmValue);
+        input.dataset.defaultListenerAttached = 'true';
+      }
       input.dataset.bt = binding.bt;
       input.dataset.bg = binding.bg;
       input.dataset.xrechnungName = binding.catalogName;
@@ -394,6 +404,18 @@
       warnings.push('Auftragsnummer wirkt ungewöhnlich; bei öffentlichen Empfängern oft Pflicht.');
     }
 
+    for (const [label, group] of [['Abschlag', invoice.allowance], ['Zuschlag', invoice.charge]]) {
+      const raw = String(group?.amount ?? '').trim();
+      if (!raw) continue;
+      const amount = decimal(raw, Number.NaN);
+      if (!Number.isFinite(amount)) errors.push(`${label} muss als Zahl angegeben werden.`);
+      else if (amount < 0) errors.push(`${label} darf nicht negativ sein.`);
+      else if (!/^\d+(?:[.,]\d{1,2})?$/.test(raw)) errors.push(`${label} darf höchstens zwei Dezimalstellen haben.`);
+    }
+    const totals = calculateTotals(invoice.lines, { allowance: invoice.allowance, charge: invoice.charge });
+    if (Number.isFinite(totals.taxable) && totals.taxable < 0) errors.push('Abschlag/Zuschlag erzeugt eine negative steuerpflichtige Summe. Bitte Beträge prüfen.');
+    if (Number.isFinite(totals.payable) && totals.payable < 0) errors.push('Abschlag/Zuschlag erzeugt einen negativen Zahlbetrag. Bitte Beträge prüfen.');
+
     return { ok: errors.length === 0, errors, warnings };
   }
 
@@ -512,7 +534,7 @@
   }
 
   function generateCiiXml(invoice, options = {}) {
-    const totals = calculateTotals(invoice.lines, { allowance: invoice.allowance, charge: invoice.charge });
+    const totals = calculateTotals(invoice.lines);
     const currency = invoice.currency || 'EUR';
     const guideline = options.xrechnung
       ? 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0'
@@ -664,6 +686,7 @@
       return attrs.match(attrPattern)?.[1] || '';
     };
     const firstOf = (...names) => names.map((name) => valueOf(name)).find(Boolean) || '';
+    const firstOfIn = (source, ...names) => names.map((name) => valueOf(name, source)).find(Boolean) || '';
     const dateFromXml = (value) => {
       const raw = String(value || '').trim();
       if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
@@ -676,6 +699,7 @@
     };
 
     const exchangedDocument = section('ExchangedDocument');
+    const context = section('ExchangedDocumentContext');
     const supplierParty = section('AccountingSupplierParty') || section('SellerTradeParty');
     const customerParty = section('AccountingCustomerParty') || section('BuyerTradeParty');
     const supplierPostal = section('PostalAddress', supplierParty) || section('PostalTradeAddress', supplierParty);
@@ -687,8 +711,10 @@
 
     assign('invoiceNumber', valueOf('ID', exchangedDocument) || firstOf('ID', 'InvoiceNumber'));
     assign('issueDate', dateFromXml(firstOf('IssueDate', 'DateTimeString')));
+    assign('invoiceTypeCode', firstOf('InvoiceTypeCode') || valueOf('TypeCode', exchangedDocument));
     assign('dueDate', dateFromXml(firstOf('DueDate')));
     assign('currency', firstOf('DocumentCurrencyCode', 'InvoiceCurrencyCode'));
+    assign('businessProcessType', firstOf('ProfileID') || firstOfIn(section('BusinessProcessSpecifiedDocumentContextParameter', context), 'ID'));
     assign('buyerReference', firstOf('BuyerReference', 'BuyerReferenceBT10'));
     assign('orderNumber', valueOf('ID', section('OrderReference')) || valueOf('IssuerAssignedID', section('BuyerOrderReferencedDocument')));
     assign('paymentIban', firstOf('IBANID', 'IBAN', 'PayeeAccountID') || valueOf('ID', section('PayeeFinancialAccount')));
@@ -1290,7 +1316,7 @@
 
   function applyParsedFields(document, fields, fieldSources = {}) {
     const assignments = {
-      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', dueDate: 'dueDate', currency: 'currency', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerStreet: 'sellerStreet', sellerPostalCode: 'sellerPostalCode', sellerCity: 'sellerCity', sellerCountry: 'sellerCountry', sellerVatId: 'sellerVatId', sellerEndpointId: 'sellerEndpointId', sellerEndpointSchemeId: 'sellerEndpointSchemeId', sellerIdentifier: 'sellerIdentifier', sellerTelephone: 'sellerTelephone', buyerName: 'buyerName', buyerStreet: 'buyerStreet', buyerPostalCode: 'buyerPostalCode', buyerCity: 'buyerCity', buyerCountry: 'buyerCountry', buyerEndpointId: 'buyerEndpointId', buyerEndpointSchemeId: 'buyerEndpointSchemeId', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineUnitCode: 'lineUnitCode', lineNetPrice: 'lineNetPrice', lineTaxPercent: 'lineTaxPercent',
+      invoiceNumber: 'invoiceNumber', issueDate: 'issueDate', invoiceTypeCode: 'invoiceTypeCode', dueDate: 'dueDate', currency: 'currency', businessProcessType: 'businessProcessType', buyerReference: 'buyerReference', orderNumber: 'orderNumber', paymentIban: 'paymentIban', paymentTerms: 'paymentTerms', sellerName: 'sellerName', sellerStreet: 'sellerStreet', sellerPostalCode: 'sellerPostalCode', sellerCity: 'sellerCity', sellerCountry: 'sellerCountry', sellerVatId: 'sellerVatId', sellerEndpointId: 'sellerEndpointId', sellerEndpointSchemeId: 'sellerEndpointSchemeId', sellerIdentifier: 'sellerIdentifier', sellerTelephone: 'sellerTelephone', buyerName: 'buyerName', buyerStreet: 'buyerStreet', buyerPostalCode: 'buyerPostalCode', buyerCity: 'buyerCity', buyerCountry: 'buyerCountry', buyerEndpointId: 'buyerEndpointId', buyerEndpointSchemeId: 'buyerEndpointSchemeId', lineDescription: 'lineDescription', lineQuantity: 'lineQuantity', lineUnitCode: 'lineUnitCode', lineNetPrice: 'lineNetPrice', lineTaxPercent: 'lineTaxPercent',
     };
     const labels = Object.fromEntries([...getFormFieldBindings(), ...REQUIRED_FIELDS].map((field) => [field.id, field.catalogName || field.label || field.id]));
     const filled = [];
@@ -1306,7 +1332,11 @@
     }
     const missingRequired = REQUIRED_FIELDS
       .map((field) => field.id)
-      .filter((id) => !String(document.getElementById(id)?.value || '').trim());
+      .filter((id) => {
+        const input = document.getElementById(id);
+        if (!String(input?.value || '').trim()) return true;
+        return input?.dataset?.defaultValue === 'true' && input?.dataset?.userConfirmed !== 'true' && !input?.dataset?.source;
+      });
     const report = { filled, missingRequired };
     renderExtractionReview(document, report);
     return report;
@@ -1485,7 +1515,10 @@
         if (!selected) return;
         const ext = extensionFromName(selected.name);
         const handleParsed = (parsed) => {
-          if (parsed.ok) applyParsedFields(document, parsed.fields, parsed.fieldSources || {});
+          if (parsed.ok) {
+            applyXRechnungFieldMetadata(document);
+            applyParsedFields(document, parsed.fields, parsed.fieldSources || {});
+          }
           const filledCount = parsed.ok ? Object.keys(parsed.fields || {}).length : 0;
           showResult(document, parsed.ok
             ? { ok: true, warnings: parsed.warnings, message: `Lokale Datei gelesen: ${selected.name}. ${filledCount} Felder automatisch vorgeschlagen; bitte Feldquellen prüfen und fehlende Pflichtfelder ergänzen.` }

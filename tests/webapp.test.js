@@ -318,7 +318,9 @@ test('local XML intake auto-detects generated UBL fields for sourceFile autofill
     invoiceNumber: 'RE-2025-0001',
     issueDate: '2025-01-15',
     dueDate: '2025-02-01',
+    invoiceTypeCode: '380',
     currency: 'EUR',
+    businessProcessType: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
     buyerReference: 'DEMO-LEITWEG-001',
     orderNumber: 'DEMO-ORDER-001',
     paymentIban: 'DE00DEMO00000000000000',
@@ -354,6 +356,8 @@ test('local CII XML intake auto-detects generated fields for sourceFile autofill
   assert(parsed.ok === true, 'generated CII XML should parse as local source file');
   assert(parsed.fields.invoiceNumber === 'RE-2025-0001', 'CII invoice number missing');
   assert(parsed.fields.issueDate === '2025-01-15', 'CII issue date missing');
+  assert(parsed.fields.invoiceTypeCode === '380', 'CII invoice type code missing');
+  assert(parsed.fields.businessProcessType === 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0', 'CII business process/profile missing');
   assert(parsed.fields.buyerReference === 'DEMO-LEITWEG-001', 'CII buyer reference missing');
   assert(parsed.fields.orderNumber === 'DEMO-ORDER-001', 'CII order number missing');
   assert(parsed.fields.paymentIban === 'DE00DEMO00000000000000', 'CII IBAN missing');
@@ -402,7 +406,7 @@ test('sourceFile applyParsedFields reports filled and missing required fields wi
       if (id === 'recognizedFieldList') return fieldList;
       if (id === 'extractionReview') return review;
       if (id === 'extractionSummary') return summary;
-      if (['invoiceNumber', 'buyerReference', 'sellerName'].includes(id) || app.getRequiredFields().some((field) => field.id === id)) {
+      if (['invoiceNumber', 'buyerReference', 'sellerName', 'invoiceTypeCode', 'businessProcessType'].includes(id) || app.getRequiredFields().some((field) => field.id === id)) {
         if (!inputs.has(id)) inputs.set(id, makeInput(id));
         return inputs.get(id);
       }
@@ -412,19 +416,139 @@ test('sourceFile applyParsedFields reports filled and missing required fields wi
   };
   const report = app.applyParsedFields(document, {
     invoiceNumber: 'RE-SRC-1',
+    invoiceTypeCode: '381',
+    businessProcessType: 'urn:test:source-profile',
     buyerReference: 'LW-SRC-1',
     sellerName: 'Quelle GmbH',
   }, {
     invoiceNumber: 'XML lokale Dateierkennung',
+    invoiceTypeCode: 'XML lokale Dateierkennung',
+    businessProcessType: 'XML lokale Dateierkennung',
     buyerReference: 'XML lokale Dateierkennung',
     sellerName: 'XML lokale Dateierkennung',
   });
-  assert(report.filled.length === 3, 'expected three filled fields');
+  assert(report.filled.length === 5, 'expected five filled fields');
   assert(report.missingRequired.includes('paymentIban'), 'missing required IBAN should be reported');
   assert(values.get('invoiceNumber') === 'RE-SRC-1', 'invoiceNumber should be written to DOM');
+  assert(values.get('invoiceTypeCode') === '381', 'invoiceTypeCode should be written to DOM');
+  assert(values.get('businessProcessType') === 'urn:test:source-profile', 'businessProcessType should be written to DOM');
   assert(review.hidden === false, 'review panel should become visible');
-  assert(summary.textContent.includes('3 Felder'), 'summary should mention filled count');
+  assert(summary.textContent.includes('5 Felder'), 'summary should mention filled count');
   assert(fieldList.children.length >= 3, 'field list should render recognized field rows');
+});
+
+
+
+test('sourceFile applyParsedFields treats ungrounded required defaults as still needing review', () => {
+  const defaultValues = new Map([
+    ['invoiceTypeCode', '380'],
+    ['currency', 'EUR'],
+    ['businessProcessType', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0'],
+  ]);
+  const inputs = new Map();
+  const makeInput = (id) => {
+    const input = { dataset: {}, classList: { add() {} } };
+    Object.defineProperty(input, 'value', {
+      get() { return defaultValues.get(id) || ''; },
+      set(value) { defaultValues.set(id, value); },
+    });
+    return input;
+  };
+  const fieldList = { children: [], appendChild(node) { this.children.push(node); }, textContent: '' };
+  const review = { hidden: true };
+  const summary = { textContent: '', className: '' };
+  const makeNode = (tag) => ({ tag, children: [], className: '', textContent: '', dataset: {}, appendChild(node) { this.children.push(node); }, setAttribute() {} });
+  const document = {
+    getElementById(id) {
+      if (id === 'recognizedFieldList') return fieldList;
+      if (id === 'extractionReview') return review;
+      if (id === 'extractionSummary') return summary;
+      if (app.getRequiredFields().some((field) => field.id === id)) {
+        if (!inputs.has(id)) inputs.set(id, makeInput(id));
+        return inputs.get(id);
+      }
+      return null;
+    },
+    createElement: makeNode,
+  };
+
+  app.applyXRechnungFieldMetadata(document);
+  const report = app.applyParsedFields(document, {
+    invoiceNumber: 'RE-SRC-PARTIAL',
+    buyerReference: 'LW-SRC-PARTIAL',
+    orderNumber: 'PO-SRC-PARTIAL',
+  }, {
+    invoiceNumber: 'TXT lokale Dateierkennung',
+    buyerReference: 'TXT lokale Dateierkennung',
+    orderNumber: 'TXT lokale Dateierkennung',
+  });
+
+  assert(report.missingRequired.includes('invoiceTypeCode'), 'default invoice type must remain missing/unconfirmed without source metadata');
+  assert(report.missingRequired.includes('currency'), 'default currency must remain missing/unconfirmed without source metadata');
+  assert(report.missingRequired.includes('businessProcessType'), 'default ProfileID must remain missing/unconfirmed without source metadata');
+  assert(!report.missingRequired.includes('invoiceNumber'), 'source-backed invoice number should not remain missing');
+});
+
+
+
+test('sourceFile review accepts required default values after an explicit user edit confirmation', () => {
+  const values = new Map([
+    ['invoiceTypeCode', '380'],
+    ['currency', 'EUR'],
+    ['businessProcessType', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0'],
+  ]);
+  const listeners = new Map();
+  const inputs = new Map();
+  const makeInput = (id) => {
+    const input = {
+      dataset: {},
+      classList: { add() {} },
+      setAttribute() {},
+      addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); },
+    };
+    Object.defineProperty(input, 'value', {
+      get() { return values.get(id) || ''; },
+      set(value) { values.set(id, value); },
+    });
+    return input;
+  };
+  const fieldList = { children: [], appendChild(node) { this.children.push(node); }, textContent: '' };
+  const review = { hidden: true };
+  const summary = { textContent: '', className: '' };
+  const makeNode = (tag) => ({ tag, children: [], className: '', textContent: '', dataset: {}, appendChild(node) { this.children.push(node); }, setAttribute() {} });
+  const document = {
+    getElementById(id) {
+      if (id === 'recognizedFieldList') return fieldList;
+      if (id === 'extractionReview') return review;
+      if (id === 'extractionSummary') return summary;
+      if (app.getRequiredFields().some((field) => field.id === id)) {
+        if (!inputs.has(id)) inputs.set(id, makeInput(id));
+        return inputs.get(id);
+      }
+      return null;
+    },
+    createElement: makeNode,
+  };
+
+  app.applyXRechnungFieldMetadata(document);
+  listeners.get('invoiceTypeCode:input')?.();
+  listeners.get('currency:input')?.();
+  listeners.get('businessProcessType:input')?.();
+  app.applyXRechnungFieldMetadata(document);
+
+  const report = app.applyParsedFields(document, {
+    invoiceNumber: 'RE-SRC-PARTIAL',
+    buyerReference: 'LW-SRC-PARTIAL',
+    orderNumber: 'PO-SRC-PARTIAL',
+  }, {
+    invoiceNumber: 'TXT lokale Dateierkennung',
+    buyerReference: 'TXT lokale Dateierkennung',
+    orderNumber: 'TXT lokale Dateierkennung',
+  });
+
+  assert(!report.missingRequired.includes('invoiceTypeCode'), 'user-confirmed invoice type should not remain missing');
+  assert(!report.missingRequired.includes('currency'), 'user-confirmed currency should not remain missing');
+  assert(!report.missingRequired.includes('businessProcessType'), 'user-confirmed ProfileID should not remain missing');
 });
 
 test('browser execution model mirrors competitor-style review funnel while keeping local-first boundary', () => {
@@ -980,6 +1104,43 @@ test('generate xrechnung ubl xml includes Leitweg-ID, payment terms, seller emai
   assert(artifact.content.includes('<cbc:PayableAmount currencyID="EUR">238.00</cbc:PayableAmount>'), 'Payable amount wrong');
   assert(artifact.content.indexOf('<cbc:Note>') < artifact.content.indexOf('<cbc:DocumentCurrencyCode>'), 'UBL Note must precede DocumentCurrencyCode for XSD sequence');
   assert(artifact.content.indexOf('<cbc:BuyerReference>') < artifact.content.indexOf('<cac:OrderReference>'), 'UBL BuyerReference must precede OrderReference');
+});
+
+
+
+test('preflight blocks invalid allowance and charge amounts before negative totals can be generated', () => {
+  const excessiveAllowance = app.convertForAgent(sampleInvoice({ allowance: { amount: '250.00', reasonCode: '95' } }), 'xrechnung-ubl');
+  assert(excessiveAllowance.ok === false, 'allowance greater than line net must block conversion');
+  assert(excessiveAllowance.errors.some((error) => /Abschlag|steuerpflichtige Summe|negativ/i.test(error)), 'negative taxable total error should be explicit');
+
+  const roundingBoundary = app.convertForAgent(sampleInvoice({ allowance: { amount: '200.005', reasonCode: '95' } }), 'xrechnung-ubl');
+  assert(roundingBoundary.ok === false, 'allowance that rounds above line net must block conversion');
+  assert(roundingBoundary.errors.some((error) => /Dezimalstellen|steuerpflichtige Summe|negativ/i.test(error)), 'rounding boundary error should be explicit');
+
+  const negativeAllowance = app.convertForAgent(sampleInvoice({ allowance: { amount: '-1.00', reasonCode: '95' } }), 'xrechnung-ubl');
+  assert(negativeAllowance.ok === false, 'negative allowance amount must block conversion');
+  assert(negativeAllowance.errors.some((error) => /Abschlag/i.test(error)), 'negative allowance error should name allowance');
+
+  const badCharge = app.convertForAgent(sampleInvoice({ charge: { amount: 'abc', reasonCode: 'FC' } }), 'xrechnung-ubl');
+  assert(badCharge.ok === false, 'non-numeric charge amount must block conversion');
+  assert(badCharge.errors.some((error) => /Zuschlag/i.test(error)), 'non-numeric charge error should name charge');
+});
+
+test('CII and hybrid totals ignore UBL-only allowance and charge fields until CII export supports them', () => {
+  const invoice = sampleInvoice({ allowance: { amount: '10.00', reasonCode: '95' }, charge: { amount: '2.50', reasonCode: 'FC' } });
+  const cii = app.generateInvoice(invoice, 'xrechnung-cii');
+  assert(cii.content.includes('<ram:LineTotalAmount>200.00</ram:LineTotalAmount>'), 'CII line total must stay line-net when adjustments are UBL-only');
+  assert(cii.content.includes('<ram:TaxBasisTotalAmount>200.00</ram:TaxBasisTotalAmount>'), 'CII tax basis must not include UBL-only adjustments');
+  assert(cii.content.includes('<ram:DuePayableAmount>238.00</ram:DuePayableAmount>'), 'CII due payable must not include UBL-only adjustments');
+  assert(!cii.content.includes('SpecifiedTradeAllowanceCharge'), 'CII must not imply unsupported allowance/charge export');
+
+  const hybrid = app.generateInvoice(invoice, 'factur-x-pdf');
+  assert(hybrid.content.includes('<ram:DuePayableAmount>238.00</ram:DuePayableAmount>'), 'hybrid embedded CII must also ignore UBL-only adjustments');
+
+  const ubl = app.generateInvoice(invoice, 'xrechnung-ubl');
+  assert(ubl.content.includes('<cbc:AllowanceTotalAmount currencyID="EUR">10.00</cbc:AllowanceTotalAmount>'), 'UBL should still export allowance');
+  assert(ubl.content.includes('<cbc:ChargeTotalAmount currencyID="EUR">2.50</cbc:ChargeTotalAmount>'), 'UBL should still export charge');
+  assert(ubl.content.includes('<cbc:PayableAmount currencyID="EUR">229.08</cbc:PayableAmount>'), 'UBL total should include supported adjustments');
 });
 
 test('generate xrechnung cii xml uses CII CrossIndustryInvoice syntax', () => {
