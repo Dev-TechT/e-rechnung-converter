@@ -11,8 +11,10 @@ function sampleInvoice(overrides = {}) {
   return {
     invoiceNumber: 'RE-2025-0001',
     issueDate: '2025-01-15',
+    invoiceTypeCode: '380',
     dueDate: '2025-02-01',
     currency: 'EUR',
+    businessProcessType: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
     buyerReference: 'DEMO-LEITWEG-001',
     orderNumber: 'DEMO-ORDER-001',
     paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
@@ -163,6 +165,96 @@ test('product page exposes full XRechnung product direction and advanced field g
     'xrechnung-3.0.2-bundle-2026-01-31.zip',
   ]) {
     assert(html.includes(needle), `missing full product direction copy: ${needle}`);
+  }
+});
+
+test('form uses red yellow and white field priority semantics', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
+  assert(html.includes('field-priority-legend'), 'missing field priority legend');
+  assert(html.includes('Rot = Pflichtfeld'), 'missing red required explanation');
+  assert(html.includes('Gelb = wichtig oder bedingt erforderlich'), 'missing yellow conditional explanation');
+  assert(html.includes('Weiß = optional oder bereits unauffällig'), 'missing white optional explanation');
+  for (const cssClass of ['field-required', 'field-conditional', 'field-optional']) {
+    assert(css.includes(`.${cssClass}`), `missing ${cssClass} CSS`);
+    assert(html.includes(cssClass), `missing ${cssClass} usage`);
+  }
+});
+
+test('runtime exposes field priority metadata for required conditional and optional fields', () => {
+  const required = app.getFieldPriority('invoiceNumber');
+  const conditional = app.getFieldPriority('sellerVatId');
+  const optional = app.getFieldPriority('sellerWebsiteUrl');
+  const dueDate = app.getFieldPriority('dueDate');
+  const buyerEndpoint = app.getFieldPriority('buyerEndpointId');
+  assert(required.priority === 'required', 'invoice number should be required priority');
+  assert(dueDate.priority === 'required', 'due date blocks export and should be required priority');
+  assert(buyerEndpoint.priority === 'required', 'buyer endpoint is catalog-required and should be required priority');
+  assert(conditional.priority === 'conditional', 'seller VAT ID should be conditional priority');
+  assert(optional.priority === 'optional', 'seller website URL should be optional priority');
+  assert(app.getFieldsByPriority('required').some((field) => field.id === 'invoiceNumber'), 'required list missing invoice number');
+  assert(app.getFieldsByPriority('conditional').some((field) => field.id === 'sellerVatId'), 'conditional list missing seller VAT ID');
+  assert(app.getFieldsByPriority('optional').some((field) => field.id === 'sellerWebsiteUrl'), 'optional list missing seller website URL');
+});
+
+test('expanded form model includes references delivery allowances charges taxes attachments and output options', () => {
+  const fieldIds = app.getFormFieldBindings().map((field) => field.id);
+  for (const expected of [
+    'invoiceTypeCode', 'businessProcessType', 'projectReference', 'contractReference', 'sellerOrderReference',
+    'deliveryDate', 'deliveryRecipientName', 'deliveryStreet', 'deliveryCity', 'deliveryCountry',
+    'allowanceAmount', 'allowanceReasonCode', 'chargeAmount', 'chargeReasonCode',
+    'taxExemptionReason', 'attachmentId', 'attachmentDescription', 'outputLanguage', 'quantityUnitDisplayMode',
+  ]) {
+    assert(fieldIds.includes(expected), `missing expanded field binding: ${expected}`);
+  }
+});
+
+test('field priorities match export-blocking preflight and helper metadata is explicit', () => {
+  const requiredIds = app.getRequiredFields().map((field) => field.id);
+  const redIds = app.getFieldsByPriority('required').map((field) => field.id).filter((id) => !id.startsWith('line'));
+  for (const id of redIds) {
+    assert(requiredIds.includes(id), `red required field is not preflight-blocking: ${id}`);
+  }
+  const invalid = sampleInvoice({ seller: { ...sampleInvoice().seller, street: '' } });
+  const report = app.convertForAgent(invalid, 'xrechnung-ubl');
+  assert(report.ok === false, 'blank red seller street should block conversion');
+  assert(report.errors.some((error) => error.includes('Straße des Rechnungsstellers')), 'missing seller street error should be explicit');
+  const scheme = app.getFormFieldBindings().find((field) => field.id === 'sellerEndpointSchemeId');
+  assert(scheme.catalogName.includes('schemeID for BT-34'), 'seller endpoint scheme helper metadata should not masquerade as the endpoint value');
+});
+
+test('expanded editable fields are exported in UBL or explicitly scoped in metadata', () => {
+  const invoice = sampleInvoice({
+    invoiceTypeCode: '381',
+    businessProcessType: 'urn:test:process',
+    projectReference: 'PRJ-1',
+    contractReference: 'CTR-1',
+    sellerOrderReference: 'SO-1',
+    delivery: { date: '2025-01-20', recipientName: 'Liefer Empfänger', street: 'Lieferweg 2', city: 'Lieferstadt', country: 'DE' },
+    allowance: { amount: '10.00', reasonCode: '95' },
+    charge: { amount: '2.50', reasonCode: 'FC' },
+    tax: { exemptionReason: 'Steuerhinweis' },
+    attachment: { id: 'ATT-1', description: 'Leistungsnachweis' },
+  });
+  const artifact = app.generateInvoice(invoice, 'xrechnung-ubl');
+  for (const needle of ['<cbc:InvoiceTypeCode>381</cbc:InvoiceTypeCode>', '<cbc:ProfileID>urn:test:process</cbc:ProfileID>', '<cac:ProjectReference>', 'PRJ-1', '<cac:ContractDocumentReference>', 'CTR-1', '<cbc:SalesOrderID>SO-1</cbc:SalesOrderID>', '<cac:Delivery>', 'Liefer Empfänger', '<cac:AllowanceCharge>', '<cbc:ChargeIndicator>false</cbc:ChargeIndicator>', '<cbc:ChargeIndicator>true</cbc:ChargeIndicator>', 'Steuerhinweis', '<cac:AdditionalDocumentReference>', 'ATT-1', 'Leistungsnachweis']) {
+    assert(artifact.content.includes(needle), `expanded field not exported: ${needle}`);
+  }
+  const allowedNonExported = ['sellerTradeName', 'sellerTaxId', 'sellerGlobalId', 'sellerTradeId', 'sellerWebsiteUrl', 'outputLanguage', 'quantityUnitDisplayMode'];
+  const allowedUblOnly = ['projectReference', 'contractReference', 'sellerOrderReference', 'deliveryDate', 'deliveryRecipientName', 'deliveryStreet', 'deliveryCity', 'deliveryCountry', 'allowanceAmount', 'allowanceReasonCode', 'chargeAmount', 'chargeReasonCode', 'taxExemptionReason', 'attachmentId', 'attachmentDescription'];
+  for (const field of app.getFormFieldBindings()) {
+    if (field.exported === false) assert(allowedNonExported.includes(field.id), `unexpected non-exported field: ${field.id}`);
+    if (field.exported === 'ubl-only') assert(allowedUblOnly.includes(field.id), `unexpected UBL-only field: ${field.id}`);
+  }
+});
+
+
+test('cleared red DOM defaults do not silently pass preflight', () => {
+  const base = sampleInvoice();
+  for (const field of ['invoiceTypeCode', 'currency', 'businessProcessType']) {
+    const invoice = { ...base, [field]: '' };
+    const report = app.convertForAgent(invoice, 'xrechnung-ubl');
+    assert(report.ok === false, `${field} should block when cleared`);
   }
 });
 
@@ -345,16 +437,17 @@ test('browser execution model mirrors competitor-style review funnel while keepi
   assert(model.validation.browserNativePipeline.steps.includes('schematron-xslt'), 'browser-native validator plan should include Schematron/XSLT');
 });
 
-test('docs explain PDF24 and invoice-converter inspired local review funnel', () => {
+test('docs explain local review funnel without naming proprietary reference sites', () => {
   const docs = fs.readFileSync(path.join(__dirname, '..', 'docs', 'browser-agent-api.md'), 'utf8');
+  for (const banned of ['tools.pdf' + '24.org', 'PDF' + '24']) {
+    assert(!docs.includes(banned), 'public docs should not name proprietary reference sites');
+  }
   for (const needle of [
-    'PDF24',
-    'invoice-converter.com',
     'Datei auswählen → lokale Erkennung → prüfen und ergänzen → Browser-Validierung → Export',
     'keine Cloud-AI-Erkennung',
     'Feldquelle',
   ]) {
-    assert(docs.includes(needle), `missing competitor/review funnel note: ${needle}`);
+    assert(docs.includes(needle), `missing local review funnel note: ${needle}`);
   }
 });
 

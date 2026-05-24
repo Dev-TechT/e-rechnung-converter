@@ -1,10 +1,10 @@
-# Wettbewerbsnotizen: Invoice-Converter.com und ähnliche Tools
+# Wettbewerbsnotizen: Upload-basierte E-Rechnungs-Tools
 
 Stand: 2026-05-18
 
 ## Beobachtete Positionierung
 
-Invoice-Converter.com positioniert sich als Upload-basierter Online-Konverter:
+Upload-basierte Online-Konverter positionieren sich typischerweise so:
 
 - PDF-Rechnung hochladen.
 - Daten automatisch extrahieren.
@@ -14,9 +14,7 @@ Invoice-Converter.com positioniert sich als Upload-basierter Online-Konverter:
 
 Relevante URLs:
 
-- https://www.invoice-converter.com/en/pdf-to-zugferd
-- https://www.invoice-converter.com/en/convert
-- https://www.invoice-converter.com/
+- SaaS PDF/Office-zu-E-Rechnung-Konverter mit Upload-Review-Export-Funnel
 
 ## Was wir davon übernehmen sollten
 

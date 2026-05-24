@@ -58,8 +58,8 @@ Bewertung: reference-only. Nützlich für Parsing/Indexierung bestehender E-Rech
 
 ## Kommerzielle Wettbewerber
 
-- PDF24 E-Rechnung: reifes proprietäres Tool, Online/Offline; guter UX-Benchmark.
-- invoice-converter.com: SaaS PDF -> XRechnung/ZUGFeRD; Datenschutz/AVV prüfen.
+- Reife proprietäre E-Rechnungs-Tools: Online/Offline-Flows; guter UX-/Reifegrad-Benchmark ohne Code-Übernahme.
+- SaaS PDF -> XRechnung/ZUGFeRD: Datenschutz/AVV prüfen.
 - e-rechnung.tools: SaaS PDF/Word/Excel -> XRechnung/ZUGFeRD; Pay-per-use Benchmark.
 - Invoixo: Offline-Tool für Word/PDF -> E-Rechnung; wichtigster Datenschutz-/Desktop-Benchmark.
 - Treesoft PDF2XRechnung/E-Rechnung Toolkit: proprietär, template-/PC-orientiert; guter B2B-Benchmark.

@@ -37,16 +37,8 @@
       "repo": "https://github.com/veraPDF/veraPDF-apps",
       "role": "local PDF/A-3 carrier validation for ZUGFeRD/Factur-X"
     },
-    "invoice_converter_com": {
-      "urls_reviewed": [
-        "https://www.invoice-converter.com/en/pdf-to-zugferd",
-        "https://www.invoice-converter.com/en/convert"
-      ],
-      "observed_positioning": "Competitor positions around upload -> extraction/review -> standards-aligned download for XRechnung, ZUGFeRD, Factur-X, UBL and CII. Our differentiation remains local-first/no-server-upload."
-    },
-    "pdf24": {
-      "url_review_attempted": "https://tools.pdf24.org/de/elektronische-rechnung-erstellen",
-      "observed_from_search": "PDF24 offers online and offline e-invoice creation flows. Useful UX reference: start from a document/form, fill required invoice data, export e-invoice, but keep our product local-first and honest about validation."
+    "market_pattern_review": {
+      "observed_positioning": "Commercial tools commonly use select/upload -> extraction/review -> standards-aligned download for XRechnung, ZUGFeRD, Factur-X, UBL and CII. Our differentiation remains local-first/no-server-upload and honest validation boundaries."
     }
   },
   "supported_output_format_catalog": [

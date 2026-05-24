@@ -12,19 +12,35 @@
   const REQUIRED_FIELDS = [
     { id: 'invoiceNumber', label: 'Rechnungsnummer', required: true },
     { id: 'issueDate', label: 'Rechnungsdatum', required: true },
+    { id: 'invoiceTypeCode', label: 'Rechnungstyp', required: true },
+    { id: 'currency', label: 'Währung', required: true },
     { id: 'dueDate', label: 'Fälligkeitsdatum', required: true },
     { id: 'buyerReference', label: 'Leitweg-ID / BuyerReference', required: true },
+    { id: 'businessProcessType', label: 'Geschäftsprozess / ProfileID', required: true },
     { id: 'orderNumber', label: 'Auftragsnummer / Bestellreferenz', required: true },
     { id: 'sellerName', label: 'Name des Rechnungsstellers', required: true },
+    { id: 'sellerStreet', label: 'Straße des Rechnungsstellers', required: true },
+    { id: 'sellerPostalCode', label: 'PLZ des Rechnungsstellers', required: true },
+    { id: 'sellerCity', label: 'Ort des Rechnungsstellers', required: true },
+    { id: 'sellerCountry', label: 'Land des Rechnungsstellers', required: true },
     { id: 'sellerEndpointId', label: 'E-Mail-Adresse des Rechnungsstellers / Endpoint-ID', required: true },
+    { id: 'sellerEndpointSchemeId', label: 'Endpoint schemeID des Rechnungsstellers', required: true },
     { id: 'sellerIdentifier', label: 'Seller Identifier / Verkäuferkennung', required: true },
     { id: 'sellerTelephone', label: 'Telefon des Rechnungsstellers', required: true },
     { id: 'buyerName', label: 'Name des Empfängers', required: true },
+    { id: 'buyerStreet', label: 'Straße des Empfängers', required: true },
+    { id: 'buyerPostalCode', label: 'PLZ des Empfängers', required: true },
+    { id: 'buyerCity', label: 'Ort des Empfängers', required: true },
+    { id: 'buyerCountry', label: 'Land des Empfängers', required: true },
+    { id: 'buyerEndpointId', label: 'Endpoint-ID des Empfängers', required: true },
+    { id: 'buyerEndpointSchemeId', label: 'Endpoint schemeID des Empfängers', required: true },
     { id: 'paymentIban', label: 'IBAN', required: true },
     { id: 'paymentTerms', label: 'Zahlungsbedingungen', required: true },
     { id: 'lineDescription', label: 'Beschreibung Position 1', required: true },
     { id: 'lineQuantity', label: 'Menge Position 1', required: true },
+    { id: 'lineUnitCode', label: 'Einheit Position 1', required: true },
     { id: 'lineNetPrice', label: 'Nettopreis Position 1', required: true },
+    { id: 'lineTaxPercent', label: 'MwSt-Satz Position 1', required: true },
   ];
 
   const FORMATS = {
@@ -120,37 +136,79 @@
     }));
   }
 
+  const FIELD_PRIORITIES = {
+    required: {
+      label: 'Pflichtfeld',
+      color: 'red',
+      meaning: 'Muss vor Export/Validierung ausgefüllt sein.',
+    },
+    conditional: {
+      label: 'Wichtig / bedingt erforderlich',
+      color: 'yellow',
+      meaning: 'Je nach Empfänger, Steuerfall, Profil oder Zahlungsart wichtig und prüfpflichtig.',
+    },
+    optional: {
+      label: 'Optional / unauffällig',
+      color: 'white',
+      meaning: 'Kann ergänzt werden, blockiert aber den Browser-Export nicht pauschal.',
+    },
+  };
+
   const FORM_FIELD_BINDINGS = [
-    { id: 'invoiceNumber', bt: 'BT-1', bg: 'INVOICE', role: 'invoice.invoiceNumber' },
-    { id: 'issueDate', bt: 'BT-2', bg: 'INVOICE', role: 'invoice.issueDate' },
-    { id: 'dueDate', bt: 'BT-9', bg: 'INVOICE', role: 'invoice.dueDate' },
-    { id: 'currency', bt: 'BT-5', bg: 'INVOICE', role: 'invoice.currency' },
-    { id: 'buyerReference', bt: 'BT-10', bg: 'INVOICE', role: 'invoice.buyerReference' },
-    { id: 'orderNumber', bt: 'BT-13', bg: 'INVOICE', role: 'invoice.orderNumber' },
-    { id: 'paymentTerms', bt: 'BT-20', bg: 'INVOICE', role: 'invoice.paymentTerms' },
-    { id: 'paymentIban', bt: 'BT-84', bg: 'BG-17', role: 'payment.iban' },
-    { id: 'sellerName', bt: 'BT-27', bg: 'BG-4', role: 'seller.name' },
-    { id: 'sellerStreet', bt: 'BT-35', bg: 'BG-5', role: 'seller.street' },
-    { id: 'sellerPostalCode', bt: 'BT-38', bg: 'BG-5', role: 'seller.postalCode' },
-    { id: 'sellerCity', bt: 'BT-37', bg: 'BG-5', role: 'seller.city' },
-    { id: 'sellerCountry', bt: 'BT-40', bg: 'BG-5', role: 'seller.country' },
-    { id: 'sellerVatId', bt: 'BT-31', bg: 'BG-4', role: 'seller.vatId' },
-    { id: 'sellerIdentifier', bt: 'BT-29', bg: 'BG-4', role: 'seller.identifier' },
-    { id: 'sellerEndpointId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointId' },
-    { id: 'sellerTelephone', bt: 'BT-42', bg: 'BG-6', role: 'seller.telephone' },
-    { id: 'sellerEndpointSchemeId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointSchemeId' },
-    { id: 'buyerName', bt: 'BT-44', bg: 'BG-7', role: 'buyer.name' },
-    { id: 'buyerStreet', bt: 'BT-50', bg: 'BG-8', role: 'buyer.street' },
-    { id: 'buyerPostalCode', bt: 'BT-53', bg: 'BG-8', role: 'buyer.postalCode' },
-    { id: 'buyerCity', bt: 'BT-52', bg: 'BG-8', role: 'buyer.city' },
-    { id: 'buyerCountry', bt: 'BT-55', bg: 'BG-8', role: 'buyer.country' },
-    { id: 'buyerEndpointId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointId' },
-    { id: 'buyerEndpointSchemeId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointSchemeId' },
-    { id: 'lineDescription', bt: 'BT-153', bg: 'BG-31', role: 'line.itemName' },
-    { id: 'lineQuantity', bt: 'BT-129', bg: 'BG-25', role: 'line.quantity' },
-    { id: 'lineUnitCode', bt: 'BT-130', bg: 'BG-25', role: 'line.unitCode' },
-    { id: 'lineNetPrice', bt: 'BT-146', bg: 'BG-29', role: 'line.netPrice' },
-    { id: 'lineTaxPercent', bt: 'BT-152', bg: 'BG-30', role: 'line.taxPercent' },
+    { id: 'invoiceNumber', bt: 'BT-1', bg: 'INVOICE', role: 'invoice.invoiceNumber', priority: 'required' },
+    { id: 'issueDate', bt: 'BT-2', bg: 'INVOICE', role: 'invoice.issueDate', priority: 'required' },
+    { id: 'invoiceTypeCode', bt: 'BT-3', bg: 'INVOICE', role: 'invoice.typeCode', priority: 'required' },
+    { id: 'currency', bt: 'BT-5', bg: 'INVOICE', role: 'invoice.currency', priority: 'required' },
+    { id: 'dueDate', bt: 'BT-9', bg: 'INVOICE', role: 'invoice.dueDate', priority: 'required' },
+    { id: 'buyerReference', bt: 'BT-10', bg: 'INVOICE', role: 'invoice.buyerReference', priority: 'required' },
+    { id: 'projectReference', bt: 'BT-11', bg: 'INVOICE', role: 'invoice.projectReference', exported: 'ubl-only', priority: 'optional' },
+    { id: 'contractReference', bt: 'BT-12', bg: 'INVOICE', role: 'invoice.contractReference', exported: 'ubl-only', priority: 'optional' },
+    { id: 'orderNumber', bt: 'BT-13', bg: 'INVOICE', role: 'invoice.orderNumber', priority: 'required' },
+    { id: 'sellerOrderReference', bt: 'BT-14', bg: 'INVOICE', role: 'invoice.sellerOrderReference', exported: 'ubl-only', priority: 'optional' },
+    { id: 'businessProcessType', bt: 'BT-23', bg: 'INVOICE', role: 'invoice.businessProcessType', priority: 'required' },
+    { id: 'paymentTerms', bt: 'BT-20', bg: 'INVOICE', role: 'invoice.paymentTerms', priority: 'required' },
+    { id: 'paymentIban', bt: 'BT-84', bg: 'BG-17', role: 'payment.iban', priority: 'required' },
+    { id: 'sellerName', bt: 'BT-27', bg: 'BG-4', role: 'seller.name', priority: 'required' },
+    { id: 'sellerTradeName', bt: 'BT-28', bg: 'BG-4', role: 'seller.tradeName', exported: false, priority: 'optional' },
+    { id: 'sellerStreet', bt: 'BT-35', bg: 'BG-5', role: 'seller.street', priority: 'required' },
+    { id: 'sellerPostalCode', bt: 'BT-38', bg: 'BG-5', role: 'seller.postalCode', priority: 'required' },
+    { id: 'sellerCity', bt: 'BT-37', bg: 'BG-5', role: 'seller.city', priority: 'required' },
+    { id: 'sellerCountry', bt: 'BT-40', bg: 'BG-5', role: 'seller.country', priority: 'required' },
+    { id: 'sellerVatId', bt: 'BT-31', bg: 'BG-4', role: 'seller.vatId', priority: 'conditional' },
+    { id: 'sellerTaxId', bt: 'BT-32', bg: 'BG-4', role: 'seller.taxId', exported: false, priority: 'conditional' },
+    { id: 'sellerIdentifier', bt: 'BT-29', bg: 'BG-4', role: 'seller.identifier', priority: 'required' },
+    { id: 'sellerGlobalId', bt: 'BT-29', bg: 'BG-4', role: 'seller.globalId', exported: false, priority: 'conditional' },
+    { id: 'sellerTradeId', bt: 'BT-30', bg: 'BG-4', role: 'seller.tradeId', exported: false, priority: 'conditional' },
+    { id: 'sellerEndpointId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointId', priority: 'required' },
+    { id: 'sellerTelephone', bt: 'BT-42', bg: 'BG-6', role: 'seller.telephone', priority: 'required' },
+    { id: 'sellerEndpointSchemeId', bt: 'BT-34', bg: 'BG-4', role: 'seller.endpointSchemeId', priority: 'required', helperLabel: 'schemeID for BT-34 Seller electronic address' },
+    { id: 'sellerWebsiteUrl', bt: 'INFO', bg: 'BG-4', role: 'seller.websiteUrl', exported: false, priority: 'optional' },
+    { id: 'buyerName', bt: 'BT-44', bg: 'BG-7', role: 'buyer.name', priority: 'required' },
+    { id: 'buyerStreet', bt: 'BT-50', bg: 'BG-8', role: 'buyer.street', priority: 'required' },
+    { id: 'buyerPostalCode', bt: 'BT-53', bg: 'BG-8', role: 'buyer.postalCode', priority: 'required' },
+    { id: 'buyerCity', bt: 'BT-52', bg: 'BG-8', role: 'buyer.city', priority: 'required' },
+    { id: 'buyerCountry', bt: 'BT-55', bg: 'BG-8', role: 'buyer.country', priority: 'required' },
+    { id: 'buyerEndpointId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointId', priority: 'required' },
+    { id: 'buyerEndpointSchemeId', bt: 'BT-49', bg: 'BG-7', role: 'buyer.endpointSchemeId', priority: 'required', helperLabel: 'schemeID for BT-49 Buyer electronic address' },
+    { id: 'deliveryDate', bt: 'BT-72', bg: 'BG-13', role: 'delivery.date', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'deliveryRecipientName', bt: 'BT-70', bg: 'BG-13', role: 'delivery.recipientName', exported: 'ubl-only', priority: 'optional' },
+    { id: 'deliveryStreet', bt: 'BT-75', bg: 'BG-15', role: 'delivery.street', exported: 'ubl-only', priority: 'optional' },
+    { id: 'deliveryCity', bt: 'BT-77', bg: 'BG-15', role: 'delivery.city', exported: 'ubl-only', priority: 'optional' },
+    { id: 'deliveryCountry', bt: 'BT-80', bg: 'BG-15', role: 'delivery.country', exported: 'ubl-only', priority: 'optional' },
+    { id: 'lineDescription', bt: 'BT-153', bg: 'BG-31', role: 'line.itemName', priority: 'required' },
+    { id: 'lineQuantity', bt: 'BT-129', bg: 'BG-25', role: 'line.quantity', priority: 'required' },
+    { id: 'lineUnitCode', bt: 'BT-130', bg: 'BG-25', role: 'line.unitCode', priority: 'required' },
+    { id: 'lineNetPrice', bt: 'BT-146', bg: 'BG-29', role: 'line.netPrice', priority: 'required' },
+    { id: 'lineTaxPercent', bt: 'BT-152', bg: 'BG-30', role: 'line.taxPercent', priority: 'required' },
+    { id: 'allowanceAmount', bt: 'BT-92', bg: 'BG-20', role: 'allowance.amount', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'allowanceReasonCode', bt: 'BT-98', bg: 'BG-20', role: 'allowance.reasonCode', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'chargeAmount', bt: 'BT-99', bg: 'BG-21', role: 'charge.amount', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'chargeReasonCode', bt: 'BT-105', bg: 'BG-21', role: 'charge.reasonCode', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'taxExemptionReason', bt: 'BT-120', bg: 'BG-23', role: 'tax.exemptionReason', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'attachmentId', bt: 'BT-122', bg: 'BG-24', role: 'attachment.id', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'attachmentDescription', bt: 'BT-123', bg: 'BG-24', role: 'attachment.description', exported: 'ubl-only', priority: 'conditional' },
+    { id: 'outputLanguage', bt: 'OUTPUT', bg: 'OUTPUT', role: 'output.language', priority: 'optional', exported: false },
+    { id: 'quantityUnitDisplayMode', bt: 'OUTPUT', bg: 'OUTPUT', role: 'output.quantityUnitDisplayMode', priority: 'optional', exported: false },
   ];
 
   function getCatalogTerm(id) {
@@ -164,12 +222,26 @@
       const group = binding.bg === 'INVOICE' ? { name: 'INVOICE' } : getCatalogTerm(binding.bg);
       return {
         ...binding,
-        catalogName: term?.name || binding.bt,
+        catalogName: binding.helperLabel || term?.name || binding.bt,
         datatype: term?.datatype || '',
         requiredInModel: Boolean(term?.required),
         groupName: group?.name || binding.bg,
+        priority: binding.priority || 'optional',
+        priorityMeta: FIELD_PRIORITIES[binding.priority || 'optional'],
+        exported: binding.exported === undefined ? true : binding.exported,
+        helperLabel: binding.helperLabel || '',
       };
     });
+  }
+
+  function getFieldPriority(id) {
+    const binding = FORM_FIELD_BINDINGS.find((candidate) => candidate.id === id);
+    const priority = binding?.priority || 'optional';
+    return { id, priority, ...FIELD_PRIORITIES[priority] };
+  }
+
+  function getFieldsByPriority(priority) {
+    return getFormFieldBindings().filter((field) => field.priority === priority);
   }
 
   function applyXRechnungFieldMetadata(document) {
@@ -181,7 +253,11 @@
       input.dataset.bg = binding.bg;
       input.dataset.xrechnungName = binding.catalogName;
       input.dataset.xrechnungGroup = binding.groupName;
-      const title = `${binding.bt} ${binding.catalogName} · ${binding.bg} ${binding.groupName}`;
+      input.dataset.priority = binding.priority;
+      input.dataset.exportStatus = String(binding.exported);
+      input.classList?.add?.(`field-${binding.priority}`);
+      input.closest?.('label')?.classList?.add?.(`field-${binding.priority}`);
+      const title = `${binding.bt} ${binding.catalogName} · ${binding.bg} ${binding.groupName} · ${binding.priorityMeta.label}`;
       input.setAttribute?.('title', title);
       input.setAttribute?.('aria-description', title);
       annotated += 1;
@@ -235,15 +311,25 @@
       invoiceNumber: invoice?.invoiceNumber,
       issueDate: invoice?.issueDate,
       dueDate: invoice?.dueDate,
-      currency: invoice?.currency || 'EUR',
+      invoiceTypeCode: invoice?.invoiceTypeCode,
+      currency: invoice?.currency,
       buyerReference: invoice?.buyerReference,
+      businessProcessType: invoice?.businessProcessType,
+      projectReference: invoice?.projectReference,
+      contractReference: invoice?.contractReference,
       orderNumber: invoice?.orderNumber,
+      sellerOrderReference: invoice?.sellerOrderReference,
       seller: {
         ...(invoice?.seller || {}),
       },
       buyer: {
         ...(invoice?.buyer || {}),
       },
+      delivery: { ...(invoice?.delivery || {}) },
+      allowance: { ...(invoice?.allowance || {}) },
+      charge: { ...(invoice?.charge || {}) },
+      tax: { ...(invoice?.tax || {}) },
+      attachment: { ...(invoice?.attachment || {}) },
       paymentIban: invoice?.paymentIban,
       paymentTerms: invoice?.paymentTerms,
       lines: Array.isArray(invoice?.lines) ? invoice.lines.map((line) => line || {}) : [],
@@ -262,14 +348,28 @@
 
     requireStringField(errors, invoice.invoiceNumber, 'Rechnungsnummer');
     requireStringField(errors, invoice.issueDate, 'Rechnungsdatum');
+    requireStringField(errors, invoice.invoiceTypeCode, 'Rechnungstyp');
+    requireStringField(errors, invoice.currency, 'Währung');
     requireStringField(errors, invoice.dueDate, 'Fälligkeitsdatum');
     requireStringField(errors, invoice.buyerReference, 'Leitweg-ID / BuyerReference');
+    requireStringField(errors, invoice.businessProcessType, 'Geschäftsprozess / ProfileID');
     requireStringField(errors, invoice.orderNumber, 'Auftragsnummer / Bestellreferenz');
     requireStringField(errors, invoice.seller?.name, 'Name des Rechnungsstellers');
+    requireStringField(errors, invoice.seller?.street, 'Straße des Rechnungsstellers');
+    requireStringField(errors, invoice.seller?.postalCode, 'PLZ des Rechnungsstellers');
+    requireStringField(errors, invoice.seller?.city, 'Ort des Rechnungsstellers');
+    requireStringField(errors, invoice.seller?.country, 'Land des Rechnungsstellers');
     requireStringField(errors, invoice.seller?.endpointId, 'E-Mail-Adresse des Rechnungsstellers / Endpoint-ID');
+    requireStringField(errors, invoice.seller?.endpointSchemeId, 'Endpoint schemeID des Rechnungsstellers');
     requireStringField(errors, invoice.seller?.sellerIdentifier, 'Seller Identifier / Verkäuferkennung');
     requireStringField(errors, invoice.seller?.telephone, 'Telefon des Rechnungsstellers');
     requireStringField(errors, invoice.buyer?.name, 'Name des Empfängers');
+    requireStringField(errors, invoice.buyer?.street, 'Straße des Empfängers');
+    requireStringField(errors, invoice.buyer?.postalCode, 'PLZ des Empfängers');
+    requireStringField(errors, invoice.buyer?.city, 'Ort des Empfängers');
+    requireStringField(errors, invoice.buyer?.country, 'Land des Empfängers');
+    requireStringField(errors, invoice.buyer?.endpointId, 'Endpoint-ID des Empfängers');
+    requireStringField(errors, invoice.buyer?.endpointSchemeId, 'Endpoint schemeID des Empfängers');
     requireStringField(errors, invoice.paymentIban, 'IBAN');
     requireStringField(errors, invoice.paymentTerms, 'Zahlungsbedingungen');
 
@@ -279,7 +379,9 @@
       invoice.lines.forEach((line, index) => {
         requireStringField(errors, line.description, `Beschreibung Position ${index + 1}`);
         requireStringField(errors, line.quantity, `Menge Position ${index + 1}`);
+        requireStringField(errors, line.unitCode, `Einheit Position ${index + 1}`);
         requireStringField(errors, line.netPrice, `Nettopreis Position ${index + 1}`);
+        requireStringField(errors, line.taxPercent, `MwSt-Satz Position ${index + 1}`);
         if (String(line.quantity ?? '').trim() && decimal(line.quantity) <= 0) errors.push(`Menge Position ${index + 1} muss größer als 0 sein.`);
         if (String(line.netPrice ?? '').trim() && decimal(line.netPrice) < 0) errors.push(`Nettopreis Position ${index + 1} darf nicht negativ sein.`);
       });
@@ -295,11 +397,53 @@
     return { ok: errors.length === 0, errors, warnings };
   }
 
-  function calculateTotals(lines) {
-    const taxable = lines.reduce((sum, line) => sum + decimal(line.quantity) * decimal(line.netPrice), 0);
+  function calculateTotals(lines, adjustments = {}) {
+    const lineNet = lines.reduce((sum, line) => sum + decimal(line.quantity) * decimal(line.netPrice), 0);
+    const allowance = hasAmount(adjustments.allowance) ? decimal(adjustments.allowance.amount) : 0;
+    const charge = hasAmount(adjustments.charge) ? decimal(adjustments.charge.amount) : 0;
+    const taxable = lineNet - allowance + charge;
     const firstTax = lines[0] ? decimal(lines[0].taxPercent, 19) : 19;
     const tax = money(taxable * firstTax / 100);
-    return { taxable: money(taxable), tax, payable: money(taxable + tax), taxPercent: firstTax };
+    return { lineNet: money(lineNet), allowance: money(allowance), charge: money(charge), taxable: money(taxable), tax, payable: money(taxable + tax), taxPercent: firstTax };
+  }
+
+  function optionalXml(value, render) {
+    return String(value ?? '').trim() ? render(String(value).trim()) : '';
+  }
+
+  function hasAmount(group) {
+    return String(group?.amount ?? '').trim() && decimal(group.amount) !== 0;
+  }
+
+  function allowanceChargeUblXml(group, isCharge, currency) {
+    if (!hasAmount(group)) return '';
+    const amount = formatMoney(decimal(group.amount));
+    const reasonCode = group.reasonCode || (isCharge ? 'FC' : '95');
+    return `
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>${isCharge ? 'true' : 'false'}</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReasonCode>${escapeXml(reasonCode)}</cbc:AllowanceChargeReasonCode>
+    <cbc:Amount currencyID="${currency}">${amount}</cbc:Amount>
+  </cac:AllowanceCharge>`;
+  }
+
+  function supportingDocumentUblXml(attachment) {
+    if (!String(attachment?.id ?? '').trim()) return '';
+    return `
+  <cac:AdditionalDocumentReference>
+    <cbc:ID>${escapeXml(attachment.id)}</cbc:ID>
+    ${optionalXml(attachment.description, (value) => `<cbc:DocumentDescription>${escapeXml(value)}</cbc:DocumentDescription>`)}
+  </cac:AdditionalDocumentReference>`;
+  }
+
+  function deliveryUblXml(delivery) {
+    if (!delivery || !Object.values(delivery).some((value) => String(value ?? '').trim())) return '';
+    return `
+  <cac:Delivery>
+    ${optionalXml(delivery.date, (value) => `<cbc:ActualDeliveryDate>${escapeXml(value)}</cbc:ActualDeliveryDate>`)}
+    ${(delivery.recipientName || delivery.street || delivery.city || delivery.country) ? `<cac:DeliveryLocation><cac:Address>${optionalXml(delivery.street, (value) => `<cbc:StreetName>${escapeXml(value)}</cbc:StreetName>`)}${optionalXml(delivery.city, (value) => `<cbc:CityName>${escapeXml(value)}</cbc:CityName>`)}<cac:Country><cbc:IdentificationCode>${escapeXml(delivery.country || 'DE')}</cbc:IdentificationCode></cac:Country></cac:Address></cac:DeliveryLocation>` : ''}
+    ${optionalXml(delivery.recipientName, (value) => `<cac:DeliveryParty><cac:PartyName><cbc:Name>${escapeXml(value)}</cbc:Name></cac:PartyName></cac:DeliveryParty>`)}
+  </cac:Delivery>`;
   }
 
   function partyUblXml(party) {
@@ -321,7 +465,7 @@
   }
 
   function generateUblXml(invoice, options = {}) {
-    const totals = calculateTotals(invoice.lines);
+    const totals = calculateTotals(invoice.lines, { allowance: invoice.allowance, charge: invoice.charge });
     const currency = invoice.currency || 'EUR';
     const customization = options.xrechnung
       ? 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0'
@@ -345,27 +489,30 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:CustomizationID>${customization}</cbc:CustomizationID>
-  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+  <cbc:ProfileID>${escapeXml(invoice.businessProcessType || 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0')}</cbc:ProfileID>
   <cbc:ID>${escapeXml(invoice.invoiceNumber)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(invoice.issueDate)}</cbc:IssueDate>
   <cbc:DueDate>${escapeXml(invoice.dueDate)}</cbc:DueDate>
-  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:InvoiceTypeCode>${escapeXml(invoice.invoiceTypeCode || '380')}</cbc:InvoiceTypeCode>
   <cbc:Note>${escapeXml(invoice.paymentTerms)}</cbc:Note>
   <cbc:DocumentCurrencyCode>${escapeXml(currency)}</cbc:DocumentCurrencyCode>
   <cbc:BuyerReference>${escapeXml(invoice.buyerReference)}</cbc:BuyerReference>
-  <cac:OrderReference><cbc:ID>${escapeXml(invoice.orderNumber)}</cbc:ID></cac:OrderReference>
+  <cac:OrderReference><cbc:ID>${escapeXml(invoice.orderNumber)}</cbc:ID>${optionalXml(invoice.sellerOrderReference, (value) => `<cbc:SalesOrderID>${escapeXml(value)}</cbc:SalesOrderID>`)}</cac:OrderReference>
+  ${optionalXml(invoice.contractReference, (value) => `<cac:ContractDocumentReference><cbc:ID>${escapeXml(value)}</cbc:ID></cac:ContractDocumentReference>`)}
+  ${supportingDocumentUblXml(invoice.attachment)}
+  ${optionalXml(invoice.projectReference, (value) => `<cac:ProjectReference><cbc:ID>${escapeXml(value)}</cbc:ID></cac:ProjectReference>`)}
   <cac:AccountingSupplierParty>${partyUblXml(invoice.seller)}
   </cac:AccountingSupplierParty>
   <cac:AccountingCustomerParty>${partyUblXml(invoice.buyer)}
-  </cac:AccountingCustomerParty>
-  <cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${escapeXml(invoice.paymentIban)}</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>
-  <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>${formatMoney(totals.taxPercent)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>
-  <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:LineExtensionAmount><cbc:TaxExclusiveAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxExclusiveAmount><cbc:TaxInclusiveAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:TaxInclusiveAmount><cbc:PayableAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:PayableAmount></cac:LegalMonetaryTotal>${lineXml}
+  </cac:AccountingCustomerParty>${deliveryUblXml(invoice.delivery)}
+  <cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${escapeXml(invoice.paymentIban)}</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>${allowanceChargeUblXml(invoice.allowance, false, currency)}${allowanceChargeUblXml(invoice.charge, true, currency)}
+  <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>${formatMoney(totals.taxPercent)}</cbc:Percent>${optionalXml(invoice.tax?.exemptionReason, (value) => `<cbc:TaxExemptionReason>${escapeXml(value)}</cbc:TaxExemptionReason>`)}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>
+  <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="${currency}">${formatMoney(totals.lineNet)}</cbc:LineExtensionAmount><cbc:TaxExclusiveAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxExclusiveAmount><cbc:TaxInclusiveAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:TaxInclusiveAmount><cbc:AllowanceTotalAmount currencyID="${currency}">${formatMoney(totals.allowance)}</cbc:AllowanceTotalAmount><cbc:ChargeTotalAmount currencyID="${currency}">${formatMoney(totals.charge)}</cbc:ChargeTotalAmount><cbc:PayableAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:PayableAmount></cac:LegalMonetaryTotal>${lineXml}
 </Invoice>`;
   }
 
   function generateCiiXml(invoice, options = {}) {
-    const totals = calculateTotals(invoice.lines);
+    const totals = calculateTotals(invoice.lines, { allowance: invoice.allowance, charge: invoice.charge });
     const currency = invoice.currency || 'EUR';
     const guideline = options.xrechnung
       ? 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0'
@@ -384,8 +531,8 @@
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
-  <rsm:ExchangedDocumentContext><ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${guideline}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>
-  <rsm:ExchangedDocument><ram:ID>${escapeXml(invoice.invoiceNumber)}</ram:ID><ram:TypeCode>380</ram:TypeCode><ram:IssueDateTime><udt:DateTimeString format="102">${escapeXml(invoice.issueDate.replaceAll('-', ''))}</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>
+  <rsm:ExchangedDocumentContext><ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>${escapeXml(invoice.businessProcessType || 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0')}</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter><ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${guideline}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>
+  <rsm:ExchangedDocument><ram:ID>${escapeXml(invoice.invoiceNumber)}</ram:ID><ram:TypeCode>${escapeXml(invoice.invoiceTypeCode || '380')}</ram:TypeCode><ram:IssueDateTime><udt:DateTimeString format="102">${escapeXml(invoice.issueDate.replaceAll('-', ''))}</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>
   <rsm:SupplyChainTradeTransaction>${lineXml}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:BuyerReference>${escapeXml(invoice.buyerReference)}</ram:BuyerReference>
@@ -1022,7 +1169,7 @@
       review: {
         required: true,
         fieldSources: true,
-        pattern: 'PDF24/invoice-converter-style upload-extract-review-export funnel, implemented local-first without cloud AI or uploads',
+        pattern: 'source-file-recognition-review-export funnel, implemented local-first without cloud AI or uploads',
       },
       generation: { mode: 'browser-only', output: ['UBL XML', 'CII XML', 'ZUGFeRD/Factur-X preparation package'] },
       validation: getBrowserValidationStrategy(),
@@ -1250,18 +1397,28 @@
       invoiceNumber: value('invoiceNumber'),
       issueDate: value('issueDate'),
       dueDate: value('dueDate'),
-      currency: value('currency') || 'EUR',
+      invoiceTypeCode: value('invoiceTypeCode'),
+      currency: value('currency'),
       buyerReference: value('buyerReference'),
+      businessProcessType: value('businessProcessType'),
+      projectReference: value('projectReference'),
+      contractReference: value('contractReference'),
       orderNumber: value('orderNumber'),
+      sellerOrderReference: value('sellerOrderReference'),
       seller: {
-        name: value('sellerName'), street: value('sellerStreet'), postalCode: value('sellerPostalCode'), city: value('sellerCity'), country: value('sellerCountry') || 'DE', vatId: value('sellerVatId'), endpointId: value('sellerEndpointId'), endpointSchemeId: value('sellerEndpointSchemeId') || 'EM', sellerIdentifier: value('sellerIdentifier'), telephone: value('sellerTelephone'),
+        name: value('sellerName'), street: value('sellerStreet'), postalCode: value('sellerPostalCode'), city: value('sellerCity'), country: value('sellerCountry'), vatId: value('sellerVatId'), endpointId: value('sellerEndpointId'), endpointSchemeId: value('sellerEndpointSchemeId'), sellerIdentifier: value('sellerIdentifier'), telephone: value('sellerTelephone'),
       },
       buyer: {
-        name: value('buyerName'), street: value('buyerStreet'), postalCode: value('buyerPostalCode'), city: value('buyerCity'), country: value('buyerCountry') || 'DE', endpointId: value('buyerEndpointId'), endpointSchemeId: value('buyerEndpointSchemeId') || 'EM',
+        name: value('buyerName'), street: value('buyerStreet'), postalCode: value('buyerPostalCode'), city: value('buyerCity'), country: value('buyerCountry'), endpointId: value('buyerEndpointId'), endpointSchemeId: value('buyerEndpointSchemeId'),
       },
+      delivery: { date: value('deliveryDate'), recipientName: value('deliveryRecipientName'), street: value('deliveryStreet'), city: value('deliveryCity'), country: value('deliveryCountry') },
+      allowance: { amount: value('allowanceAmount'), reasonCode: value('allowanceReasonCode') },
+      charge: { amount: value('chargeAmount'), reasonCode: value('chargeReasonCode') },
+      tax: { exemptionReason: value('taxExemptionReason') },
+      attachment: { id: value('attachmentId'), description: value('attachmentDescription') },
       paymentIban: value('paymentIban'),
       paymentTerms: value('paymentTerms'),
-      lines: [{ description: value('lineDescription'), quantity: value('lineQuantity'), unitCode: value('lineUnitCode') || 'C62', netPrice: value('lineNetPrice'), taxCategory: 'S', taxPercent: value('lineTaxPercent') || '19' }],
+      lines: [{ description: value('lineDescription'), quantity: value('lineQuantity'), unitCode: value('lineUnitCode'), netPrice: value('lineNetPrice'), taxCategory: 'S', taxPercent: value('lineTaxPercent') }],
     };
   }
 
@@ -1377,5 +1534,5 @@
     document.addEventListener('DOMContentLoaded', () => initBrowser(document));
   }
 
-  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
+  return { FORMATS, preflightInvoice, generateInvoice, calculateTotals, escapeXml, getRequiredFields, getXRechnungFieldCatalog, getAdvancedFieldGroups, getFormFieldBindings, getFieldPriority, getFieldsByPriority, applyXRechnungFieldMetadata, applyParsedFields, convertForAgent, validationPlan, validateGeneratedArtifact, validateXRechnungInBrowser, getBrowserValidationStrategy, parseLocalDocument, registerLocalExtractor, getBrowserExecutionModel, markRequiredFields, initBrowser };
 });
