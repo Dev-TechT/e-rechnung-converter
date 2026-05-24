@@ -184,10 +184,10 @@ Empfehlung: ernsthaft prüfen. Potenziell beste OSS-Basis für Format-Auswahl un
 
 Ja, kommerziell gibt es das bereits in Teilen:
 
-- PDF24 E-Rechnung
+- Reife proprietäre E-Rechnungs-Tools mit Online/Offline-Flows
 - Invoixo
 - Treesoft PDF2XRechnung/E-Rechnung Toolkit
-- invoice-converter.com
+- SaaS PDF/Office-zu-E-Rechnung-Konverter
 - e-rechnung.tools
 - Rechnungshub
 - PDF Xpansion SDK

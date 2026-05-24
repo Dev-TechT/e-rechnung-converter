@@ -11,8 +11,10 @@ function sampleInvoice(overrides = {}) {
   return {
     invoiceNumber: 'RE-2025-0001',
     issueDate: '2025-01-15',
+    invoiceTypeCode: '380',
     dueDate: '2025-02-01',
     currency: 'EUR',
+    businessProcessType: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
     buyerReference: 'DEMO-LEITWEG-001',
     orderNumber: 'DEMO-ORDER-001',
     paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
@@ -166,6 +168,96 @@ test('product page exposes full XRechnung product direction and advanced field g
   }
 });
 
+test('form uses red yellow and white field priority semantics', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
+  assert(html.includes('field-priority-legend'), 'missing field priority legend');
+  assert(html.includes('Rot = Pflichtfeld'), 'missing red required explanation');
+  assert(html.includes('Gelb = wichtig oder bedingt erforderlich'), 'missing yellow conditional explanation');
+  assert(html.includes('Weiß = optional oder bereits unauffällig'), 'missing white optional explanation');
+  for (const cssClass of ['field-required', 'field-conditional', 'field-optional']) {
+    assert(css.includes(`.${cssClass}`), `missing ${cssClass} CSS`);
+    assert(html.includes(cssClass), `missing ${cssClass} usage`);
+  }
+});
+
+test('runtime exposes field priority metadata for required conditional and optional fields', () => {
+  const required = app.getFieldPriority('invoiceNumber');
+  const conditional = app.getFieldPriority('sellerVatId');
+  const optional = app.getFieldPriority('sellerWebsiteUrl');
+  const dueDate = app.getFieldPriority('dueDate');
+  const buyerEndpoint = app.getFieldPriority('buyerEndpointId');
+  assert(required.priority === 'required', 'invoice number should be required priority');
+  assert(dueDate.priority === 'required', 'due date blocks export and should be required priority');
+  assert(buyerEndpoint.priority === 'required', 'buyer endpoint is catalog-required and should be required priority');
+  assert(conditional.priority === 'conditional', 'seller VAT ID should be conditional priority');
+  assert(optional.priority === 'optional', 'seller website URL should be optional priority');
+  assert(app.getFieldsByPriority('required').some((field) => field.id === 'invoiceNumber'), 'required list missing invoice number');
+  assert(app.getFieldsByPriority('conditional').some((field) => field.id === 'sellerVatId'), 'conditional list missing seller VAT ID');
+  assert(app.getFieldsByPriority('optional').some((field) => field.id === 'sellerWebsiteUrl'), 'optional list missing seller website URL');
+});
+
+test('expanded form model includes references delivery allowances charges taxes attachments and output options', () => {
+  const fieldIds = app.getFormFieldBindings().map((field) => field.id);
+  for (const expected of [
+    'invoiceTypeCode', 'businessProcessType', 'projectReference', 'contractReference', 'sellerOrderReference',
+    'deliveryDate', 'deliveryRecipientName', 'deliveryStreet', 'deliveryCity', 'deliveryCountry',
+    'allowanceAmount', 'allowanceReasonCode', 'chargeAmount', 'chargeReasonCode',
+    'taxExemptionReason', 'attachmentId', 'attachmentDescription', 'outputLanguage', 'quantityUnitDisplayMode',
+  ]) {
+    assert(fieldIds.includes(expected), `missing expanded field binding: ${expected}`);
+  }
+});
+
+test('field priorities match export-blocking preflight and helper metadata is explicit', () => {
+  const requiredIds = app.getRequiredFields().map((field) => field.id);
+  const redIds = app.getFieldsByPriority('required').map((field) => field.id).filter((id) => !id.startsWith('line'));
+  for (const id of redIds) {
+    assert(requiredIds.includes(id), `red required field is not preflight-blocking: ${id}`);
+  }
+  const invalid = sampleInvoice({ seller: { ...sampleInvoice().seller, street: '' } });
+  const report = app.convertForAgent(invalid, 'xrechnung-ubl');
+  assert(report.ok === false, 'blank red seller street should block conversion');
+  assert(report.errors.some((error) => error.includes('Straße des Rechnungsstellers')), 'missing seller street error should be explicit');
+  const scheme = app.getFormFieldBindings().find((field) => field.id === 'sellerEndpointSchemeId');
+  assert(scheme.catalogName.includes('schemeID for BT-34'), 'seller endpoint scheme helper metadata should not masquerade as the endpoint value');
+});
+
+test('expanded editable fields are exported in UBL or explicitly scoped in metadata', () => {
+  const invoice = sampleInvoice({
+    invoiceTypeCode: '381',
+    businessProcessType: 'urn:test:process',
+    projectReference: 'PRJ-1',
+    contractReference: 'CTR-1',
+    sellerOrderReference: 'SO-1',
+    delivery: { date: '2025-01-20', recipientName: 'Liefer Empfänger', street: 'Lieferweg 2', city: 'Lieferstadt', country: 'DE' },
+    allowance: { amount: '10.00', reasonCode: '95' },
+    charge: { amount: '2.50', reasonCode: 'FC' },
+    tax: { exemptionReason: 'Steuerhinweis' },
+    attachment: { id: 'ATT-1', description: 'Leistungsnachweis' },
+  });
+  const artifact = app.generateInvoice(invoice, 'xrechnung-ubl');
+  for (const needle of ['<cbc:InvoiceTypeCode>381</cbc:InvoiceTypeCode>', '<cbc:ProfileID>urn:test:process</cbc:ProfileID>', '<cac:ProjectReference>', 'PRJ-1', '<cac:ContractDocumentReference>', 'CTR-1', '<cbc:SalesOrderID>SO-1</cbc:SalesOrderID>', '<cac:Delivery>', 'Liefer Empfänger', '<cac:AllowanceCharge>', '<cbc:ChargeIndicator>false</cbc:ChargeIndicator>', '<cbc:ChargeIndicator>true</cbc:ChargeIndicator>', 'Steuerhinweis', '<cac:AdditionalDocumentReference>', 'ATT-1', 'Leistungsnachweis']) {
+    assert(artifact.content.includes(needle), `expanded field not exported: ${needle}`);
+  }
+  const allowedNonExported = ['sellerTradeName', 'sellerTaxId', 'sellerGlobalId', 'sellerTradeId', 'sellerWebsiteUrl', 'outputLanguage', 'quantityUnitDisplayMode'];
+  const allowedUblOnly = ['projectReference', 'contractReference', 'sellerOrderReference', 'deliveryDate', 'deliveryRecipientName', 'deliveryStreet', 'deliveryCity', 'deliveryCountry', 'allowanceAmount', 'allowanceReasonCode', 'chargeAmount', 'chargeReasonCode', 'taxExemptionReason', 'attachmentId', 'attachmentDescription'];
+  for (const field of app.getFormFieldBindings()) {
+    if (field.exported === false) assert(allowedNonExported.includes(field.id), `unexpected non-exported field: ${field.id}`);
+    if (field.exported === 'ubl-only') assert(allowedUblOnly.includes(field.id), `unexpected UBL-only field: ${field.id}`);
+  }
+});
+
+
+test('cleared red DOM defaults do not silently pass preflight', () => {
+  const base = sampleInvoice();
+  for (const field of ['invoiceTypeCode', 'currency', 'businessProcessType']) {
+    const invoice = { ...base, [field]: '' };
+    const report = app.convertForAgent(invoice, 'xrechnung-ubl');
+    assert(report.ok === false, `${field} should block when cleared`);
+  }
+});
+
 test('browser validator roadmap targets local XSD Schematron and codelist validation before KoSIT-equivalent claims', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
   for (const needle of [
@@ -226,7 +318,9 @@ test('local XML intake auto-detects generated UBL fields for sourceFile autofill
     invoiceNumber: 'RE-2025-0001',
     issueDate: '2025-01-15',
     dueDate: '2025-02-01',
+    invoiceTypeCode: '380',
     currency: 'EUR',
+    businessProcessType: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
     buyerReference: 'DEMO-LEITWEG-001',
     orderNumber: 'DEMO-ORDER-001',
     paymentIban: 'DE00DEMO00000000000000',
@@ -262,6 +356,8 @@ test('local CII XML intake auto-detects generated fields for sourceFile autofill
   assert(parsed.ok === true, 'generated CII XML should parse as local source file');
   assert(parsed.fields.invoiceNumber === 'RE-2025-0001', 'CII invoice number missing');
   assert(parsed.fields.issueDate === '2025-01-15', 'CII issue date missing');
+  assert(parsed.fields.invoiceTypeCode === '380', 'CII invoice type code missing');
+  assert(parsed.fields.businessProcessType === 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0', 'CII business process/profile missing');
   assert(parsed.fields.buyerReference === 'DEMO-LEITWEG-001', 'CII buyer reference missing');
   assert(parsed.fields.orderNumber === 'DEMO-ORDER-001', 'CII order number missing');
   assert(parsed.fields.paymentIban === 'DE00DEMO00000000000000', 'CII IBAN missing');
@@ -310,7 +406,7 @@ test('sourceFile applyParsedFields reports filled and missing required fields wi
       if (id === 'recognizedFieldList') return fieldList;
       if (id === 'extractionReview') return review;
       if (id === 'extractionSummary') return summary;
-      if (['invoiceNumber', 'buyerReference', 'sellerName'].includes(id) || app.getRequiredFields().some((field) => field.id === id)) {
+      if (['invoiceNumber', 'buyerReference', 'sellerName', 'invoiceTypeCode', 'businessProcessType'].includes(id) || app.getRequiredFields().some((field) => field.id === id)) {
         if (!inputs.has(id)) inputs.set(id, makeInput(id));
         return inputs.get(id);
       }
@@ -320,19 +416,139 @@ test('sourceFile applyParsedFields reports filled and missing required fields wi
   };
   const report = app.applyParsedFields(document, {
     invoiceNumber: 'RE-SRC-1',
+    invoiceTypeCode: '381',
+    businessProcessType: 'urn:test:source-profile',
     buyerReference: 'LW-SRC-1',
     sellerName: 'Quelle GmbH',
   }, {
     invoiceNumber: 'XML lokale Dateierkennung',
+    invoiceTypeCode: 'XML lokale Dateierkennung',
+    businessProcessType: 'XML lokale Dateierkennung',
     buyerReference: 'XML lokale Dateierkennung',
     sellerName: 'XML lokale Dateierkennung',
   });
-  assert(report.filled.length === 3, 'expected three filled fields');
+  assert(report.filled.length === 5, 'expected five filled fields');
   assert(report.missingRequired.includes('paymentIban'), 'missing required IBAN should be reported');
   assert(values.get('invoiceNumber') === 'RE-SRC-1', 'invoiceNumber should be written to DOM');
+  assert(values.get('invoiceTypeCode') === '381', 'invoiceTypeCode should be written to DOM');
+  assert(values.get('businessProcessType') === 'urn:test:source-profile', 'businessProcessType should be written to DOM');
   assert(review.hidden === false, 'review panel should become visible');
-  assert(summary.textContent.includes('3 Felder'), 'summary should mention filled count');
+  assert(summary.textContent.includes('5 Felder'), 'summary should mention filled count');
   assert(fieldList.children.length >= 3, 'field list should render recognized field rows');
+});
+
+
+
+test('sourceFile applyParsedFields treats ungrounded required defaults as still needing review', () => {
+  const defaultValues = new Map([
+    ['invoiceTypeCode', '380'],
+    ['currency', 'EUR'],
+    ['businessProcessType', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0'],
+  ]);
+  const inputs = new Map();
+  const makeInput = (id) => {
+    const input = { dataset: {}, classList: { add() {} } };
+    Object.defineProperty(input, 'value', {
+      get() { return defaultValues.get(id) || ''; },
+      set(value) { defaultValues.set(id, value); },
+    });
+    return input;
+  };
+  const fieldList = { children: [], appendChild(node) { this.children.push(node); }, textContent: '' };
+  const review = { hidden: true };
+  const summary = { textContent: '', className: '' };
+  const makeNode = (tag) => ({ tag, children: [], className: '', textContent: '', dataset: {}, appendChild(node) { this.children.push(node); }, setAttribute() {} });
+  const document = {
+    getElementById(id) {
+      if (id === 'recognizedFieldList') return fieldList;
+      if (id === 'extractionReview') return review;
+      if (id === 'extractionSummary') return summary;
+      if (app.getRequiredFields().some((field) => field.id === id)) {
+        if (!inputs.has(id)) inputs.set(id, makeInput(id));
+        return inputs.get(id);
+      }
+      return null;
+    },
+    createElement: makeNode,
+  };
+
+  app.applyXRechnungFieldMetadata(document);
+  const report = app.applyParsedFields(document, {
+    invoiceNumber: 'RE-SRC-PARTIAL',
+    buyerReference: 'LW-SRC-PARTIAL',
+    orderNumber: 'PO-SRC-PARTIAL',
+  }, {
+    invoiceNumber: 'TXT lokale Dateierkennung',
+    buyerReference: 'TXT lokale Dateierkennung',
+    orderNumber: 'TXT lokale Dateierkennung',
+  });
+
+  assert(report.missingRequired.includes('invoiceTypeCode'), 'default invoice type must remain missing/unconfirmed without source metadata');
+  assert(report.missingRequired.includes('currency'), 'default currency must remain missing/unconfirmed without source metadata');
+  assert(report.missingRequired.includes('businessProcessType'), 'default ProfileID must remain missing/unconfirmed without source metadata');
+  assert(!report.missingRequired.includes('invoiceNumber'), 'source-backed invoice number should not remain missing');
+});
+
+
+
+test('sourceFile review accepts required default values after an explicit user edit confirmation', () => {
+  const values = new Map([
+    ['invoiceTypeCode', '380'],
+    ['currency', 'EUR'],
+    ['businessProcessType', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0'],
+  ]);
+  const listeners = new Map();
+  const inputs = new Map();
+  const makeInput = (id) => {
+    const input = {
+      dataset: {},
+      classList: { add() {} },
+      setAttribute() {},
+      addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); },
+    };
+    Object.defineProperty(input, 'value', {
+      get() { return values.get(id) || ''; },
+      set(value) { values.set(id, value); },
+    });
+    return input;
+  };
+  const fieldList = { children: [], appendChild(node) { this.children.push(node); }, textContent: '' };
+  const review = { hidden: true };
+  const summary = { textContent: '', className: '' };
+  const makeNode = (tag) => ({ tag, children: [], className: '', textContent: '', dataset: {}, appendChild(node) { this.children.push(node); }, setAttribute() {} });
+  const document = {
+    getElementById(id) {
+      if (id === 'recognizedFieldList') return fieldList;
+      if (id === 'extractionReview') return review;
+      if (id === 'extractionSummary') return summary;
+      if (app.getRequiredFields().some((field) => field.id === id)) {
+        if (!inputs.has(id)) inputs.set(id, makeInput(id));
+        return inputs.get(id);
+      }
+      return null;
+    },
+    createElement: makeNode,
+  };
+
+  app.applyXRechnungFieldMetadata(document);
+  listeners.get('invoiceTypeCode:input')?.();
+  listeners.get('currency:input')?.();
+  listeners.get('businessProcessType:input')?.();
+  app.applyXRechnungFieldMetadata(document);
+
+  const report = app.applyParsedFields(document, {
+    invoiceNumber: 'RE-SRC-PARTIAL',
+    buyerReference: 'LW-SRC-PARTIAL',
+    orderNumber: 'PO-SRC-PARTIAL',
+  }, {
+    invoiceNumber: 'TXT lokale Dateierkennung',
+    buyerReference: 'TXT lokale Dateierkennung',
+    orderNumber: 'TXT lokale Dateierkennung',
+  });
+
+  assert(!report.missingRequired.includes('invoiceTypeCode'), 'user-confirmed invoice type should not remain missing');
+  assert(!report.missingRequired.includes('currency'), 'user-confirmed currency should not remain missing');
+  assert(!report.missingRequired.includes('businessProcessType'), 'user-confirmed ProfileID should not remain missing');
 });
 
 test('browser execution model mirrors competitor-style review funnel while keeping local-first boundary', () => {
@@ -345,16 +561,17 @@ test('browser execution model mirrors competitor-style review funnel while keepi
   assert(model.validation.browserNativePipeline.steps.includes('schematron-xslt'), 'browser-native validator plan should include Schematron/XSLT');
 });
 
-test('docs explain PDF24 and invoice-converter inspired local review funnel', () => {
+test('docs explain local review funnel without naming proprietary reference sites', () => {
   const docs = fs.readFileSync(path.join(__dirname, '..', 'docs', 'browser-agent-api.md'), 'utf8');
+  for (const banned of ['tools.pdf' + '24.org', 'PDF' + '24']) {
+    assert(!docs.includes(banned), 'public docs should not name proprietary reference sites');
+  }
   for (const needle of [
-    'PDF24',
-    'invoice-converter.com',
     'Datei auswählen → lokale Erkennung → prüfen und ergänzen → Browser-Validierung → Export',
     'keine Cloud-AI-Erkennung',
     'Feldquelle',
   ]) {
-    assert(docs.includes(needle), `missing competitor/review funnel note: ${needle}`);
+    assert(docs.includes(needle), `missing local review funnel note: ${needle}`);
   }
 });
 
@@ -887,6 +1104,43 @@ test('generate xrechnung ubl xml includes Leitweg-ID, payment terms, seller emai
   assert(artifact.content.includes('<cbc:PayableAmount currencyID="EUR">238.00</cbc:PayableAmount>'), 'Payable amount wrong');
   assert(artifact.content.indexOf('<cbc:Note>') < artifact.content.indexOf('<cbc:DocumentCurrencyCode>'), 'UBL Note must precede DocumentCurrencyCode for XSD sequence');
   assert(artifact.content.indexOf('<cbc:BuyerReference>') < artifact.content.indexOf('<cac:OrderReference>'), 'UBL BuyerReference must precede OrderReference');
+});
+
+
+
+test('preflight blocks invalid allowance and charge amounts before negative totals can be generated', () => {
+  const excessiveAllowance = app.convertForAgent(sampleInvoice({ allowance: { amount: '250.00', reasonCode: '95' } }), 'xrechnung-ubl');
+  assert(excessiveAllowance.ok === false, 'allowance greater than line net must block conversion');
+  assert(excessiveAllowance.errors.some((error) => /Abschlag|steuerpflichtige Summe|negativ/i.test(error)), 'negative taxable total error should be explicit');
+
+  const roundingBoundary = app.convertForAgent(sampleInvoice({ allowance: { amount: '200.005', reasonCode: '95' } }), 'xrechnung-ubl');
+  assert(roundingBoundary.ok === false, 'allowance that rounds above line net must block conversion');
+  assert(roundingBoundary.errors.some((error) => /Dezimalstellen|steuerpflichtige Summe|negativ/i.test(error)), 'rounding boundary error should be explicit');
+
+  const negativeAllowance = app.convertForAgent(sampleInvoice({ allowance: { amount: '-1.00', reasonCode: '95' } }), 'xrechnung-ubl');
+  assert(negativeAllowance.ok === false, 'negative allowance amount must block conversion');
+  assert(negativeAllowance.errors.some((error) => /Abschlag/i.test(error)), 'negative allowance error should name allowance');
+
+  const badCharge = app.convertForAgent(sampleInvoice({ charge: { amount: 'abc', reasonCode: 'FC' } }), 'xrechnung-ubl');
+  assert(badCharge.ok === false, 'non-numeric charge amount must block conversion');
+  assert(badCharge.errors.some((error) => /Zuschlag/i.test(error)), 'non-numeric charge error should name charge');
+});
+
+test('CII and hybrid totals ignore UBL-only allowance and charge fields until CII export supports them', () => {
+  const invoice = sampleInvoice({ allowance: { amount: '10.00', reasonCode: '95' }, charge: { amount: '2.50', reasonCode: 'FC' } });
+  const cii = app.generateInvoice(invoice, 'xrechnung-cii');
+  assert(cii.content.includes('<ram:LineTotalAmount>200.00</ram:LineTotalAmount>'), 'CII line total must stay line-net when adjustments are UBL-only');
+  assert(cii.content.includes('<ram:TaxBasisTotalAmount>200.00</ram:TaxBasisTotalAmount>'), 'CII tax basis must not include UBL-only adjustments');
+  assert(cii.content.includes('<ram:DuePayableAmount>238.00</ram:DuePayableAmount>'), 'CII due payable must not include UBL-only adjustments');
+  assert(!cii.content.includes('SpecifiedTradeAllowanceCharge'), 'CII must not imply unsupported allowance/charge export');
+
+  const hybrid = app.generateInvoice(invoice, 'factur-x-pdf');
+  assert(hybrid.content.includes('<ram:DuePayableAmount>238.00</ram:DuePayableAmount>'), 'hybrid embedded CII must also ignore UBL-only adjustments');
+
+  const ubl = app.generateInvoice(invoice, 'xrechnung-ubl');
+  assert(ubl.content.includes('<cbc:AllowanceTotalAmount currencyID="EUR">10.00</cbc:AllowanceTotalAmount>'), 'UBL should still export allowance');
+  assert(ubl.content.includes('<cbc:ChargeTotalAmount currencyID="EUR">2.50</cbc:ChargeTotalAmount>'), 'UBL should still export charge');
+  assert(ubl.content.includes('<cbc:PayableAmount currencyID="EUR">229.08</cbc:PayableAmount>'), 'UBL total should include supported adjustments');
 });
 
 test('generate xrechnung cii xml uses CII CrossIndustryInvoice syntax', () => {

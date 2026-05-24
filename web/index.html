@@ -97,64 +97,105 @@
 
         <section class="form-card">
           <div class="step">2</div>
-          <h3>Pflichtfelder</h3>
-          <p class="helper"><strong>Was bedeutet *?</strong> Mit * markierte Felder sind Pflichtfelder. Sie blockieren die Konvertierung, wenn sie fehlen. Beispielwerte sind Platzhalter; echte Werte beim Rechnungsempfänger prüfen.</p>
+          <h3>Produktformular</h3>
+          <p class="helper"><strong>Farbführung im Formular:</strong> Das Formular nutzt nicht nur Sterne, sondern Feldprioritäten. Rot blockiert den Export, Gelb ist wichtig/bedingt und Weiß bleibt neutral optional.</p>
+          <ul class="field-priority-legend" aria-label="Feldprioritäten">
+            <li><span class="priority-chip required"></span><strong>Rot = Pflichtfeld</strong><small> fehlt noch oder muss vor Export/Validierung ausgefüllt sein.</small></li>
+            <li><span class="priority-chip conditional"></span><strong>Gelb = wichtig oder bedingt erforderlich</strong><small> abhängig von Empfänger, Profil, Steuerfall, Lieferung, Zahlung oder Anhang.</small></li>
+            <li><span class="priority-chip optional"></span><strong>Weiß = optional oder bereits unauffällig</strong><small> nützlich, aber kein pauschaler Browser-Export-Blocker.</small></li>
+          </ul>
 
           <fieldset>
             <legend>Standardfelder</legend>
             <div class="grid four">
-              <label><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="invoiceNumber" data-bt="BT-1" data-bg="INVOICE" value="RE-2025-0001" required></label>
-              <label><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="issueDate" data-bt="BT-2" data-bg="INVOICE" type="date" value="2025-01-15" required></label>
-              <label><span class="label-text">Fällig am<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="dueDate" data-bt="BT-9" data-bg="INVOICE" type="date" value="2025-02-01" required></label>
-              <label><span class="label-text">Währung</span> <input id="currency" data-bt="BT-5" data-bg="INVOICE" value="EUR" autocomplete="off"></label>
-              <label><span class="label-text">IBAN<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentIban" data-bt="BT-84" data-bg="BG-17" value="DE00DEMO00000000000000" required></label>
-              <label><span class="label-text">Zahlungsbedingungen<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="paymentTerms" data-bt="BT-20" data-bg="INVOICE" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
-              <label><span class="label-text">Leitweg-ID / BuyerReference<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerReference" data-bt="BT-10" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
-              <label><span class="label-text">Auftragsnummer / Bestellreferenz<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="orderNumber" data-bt="BT-13" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
+              <label class="field-required"><span class="label-text">Rechnungsnummer<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="invoiceNumber" data-bt="BT-1" data-bg="INVOICE" value="RE-2025-0001" required></label>
+              <label class="field-required"><span class="label-text">Rechnungsdatum<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="issueDate" data-bt="BT-2" data-bg="INVOICE" type="date" value="2025-01-15" required></label>
+              <label class="field-required"><span class="label-text">Rechnungstyp<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="invoiceTypeCode" required data-bt="BT-3" data-bg="INVOICE" value="380" autocomplete="off"></label>
+              <label class="field-required"><span class="label-text">Währung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="currency" data-bt="BT-5" data-bg="INVOICE" value="EUR" autocomplete="off" required></label>
+              <label class="field-required"><span class="label-text">Fällig am<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="dueDate" data-bt="BT-9" data-bg="INVOICE" type="date" value="2025-02-01" required></label>
+              <label class="field-required"><span class="label-text">Leitweg-ID / BuyerReference<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerReference" data-bt="BT-10" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
+              <label class="field-optional"><span class="label-text">Projektreferenz</span> <input class="field-optional" id="projectReference" data-bt="BT-11" data-bg="INVOICE" placeholder="optional"></label>
+              <label class="field-optional"><span class="label-text">Vertragsreferenz</span> <input class="field-optional" id="contractReference" data-bt="BT-12" data-bg="INVOICE" placeholder="optional"></label>
+              <label class="field-required"><span class="label-text">Auftragsnummer / Bestellreferenz<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="orderNumber" data-bt="BT-13" data-bg="INVOICE" placeholder="Beim Empfänger erfragen" required></label>
+              <label class="field-optional"><span class="label-text">Verkäufer-Auftragsreferenz</span> <input class="field-optional" id="sellerOrderReference" data-bt="BT-14" data-bg="INVOICE" placeholder="optional"></label>
+              <label class="field-required"><span class="label-text">Geschäftsprozess<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="businessProcessType" required data-bt="BT-23" data-bg="INVOICE" value="urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"></label>
+              <label class="field-required"><span class="label-text">IBAN<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="paymentIban" data-bt="BT-84" data-bg="BG-17" value="DE00DEMO00000000000000" required></label>
+              <label class="field-required"><span class="label-text">Zahlungsbedingungen<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="paymentTerms" data-bt="BT-20" data-bg="INVOICE" value="Zahlbar innerhalb von 14 Tagen ohne Abzug." required></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Rechnungssteller</legend>
             <div class="grid three">
-              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerName" data-bt="BT-27" data-bg="BG-4" value="Beispiel Lieferant GmbH" required></label>
-              <label><span class="label-text">Straße</span> <input id="sellerStreet" data-bt="BT-35" data-bg="BG-5" value="Musterstraße 1"></label>
-              <label><span class="label-text">PLZ</span> <input id="sellerPostalCode" data-bt="BT-38" data-bg="BG-5" value="10115"></label>
-              <label><span class="label-text">Stadt</span> <input id="sellerCity" data-bt="BT-37" data-bg="BG-5" value="Berlin"></label>
-              <label><span class="label-text">Land</span> <input id="sellerCountry" data-bt="BT-40" data-bg="BG-5" value="DE"></label>
-              <label><span class="label-text">USt-ID</span> <input id="sellerVatId" data-bt="BT-31" data-bg="BG-4" value="BEISPIEL-VAT-ID"></label>
-              <label><span class="label-text">Seller Identifier<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerIdentifier" data-bt="BT-29" data-bg="BG-4" value="BEISPIEL-SELLER-ID" required></label>
-              <label><span class="label-text">E-Mail / Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerEndpointId" data-bt="BT-34" data-bg="BG-4" value="seller@example.invalid" required></label>
-              <label><span class="label-text">Telefon<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="sellerTelephone" data-bt="BT-42" data-bg="BG-6" value="+49 30 123456" required></label>
-              <label><span class="label-text">Endpoint schemeID</span> <input id="sellerEndpointSchemeId" data-bt="BT-34" data-bg="BG-4" value="EM"></label>
+              <label class="field-required"><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerName" data-bt="BT-27" data-bg="BG-4" value="Beispiel Lieferant GmbH" required></label>
+              <label class="field-optional"><span class="label-text">Handelsname</span> <input class="field-optional" id="sellerTradeName" data-bt="BT-28" data-bg="BG-4" placeholder="optional"></label>
+              <label class="field-required"><span class="label-text">Straße<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerStreet" required data-bt="BT-35" data-bg="BG-5" value="Musterstraße 1"></label>
+              <label class="field-required"><span class="label-text">PLZ<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerPostalCode" required data-bt="BT-38" data-bg="BG-5" value="10115"></label>
+              <label class="field-required"><span class="label-text">Stadt<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerCity" required data-bt="BT-37" data-bg="BG-5" value="Berlin"></label>
+              <label class="field-required"><span class="label-text">Land<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerCountry" required data-bt="BT-40" data-bg="BG-5" value="DE"></label>
+              <label class="field-conditional"><span class="label-text">USt-ID</span> <input class="field-conditional" id="sellerVatId" data-bt="BT-31" data-bg="BG-4" value="BEISPIEL-VAT-ID"></label>
+              <label class="field-conditional"><span class="label-text">Steuernummer</span> <input class="field-conditional" id="sellerTaxId" data-bt="BT-32" data-bg="BG-4" placeholder="falls relevant"></label>
+              <label class="field-required"><span class="label-text">Seller Identifier<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerIdentifier" data-bt="BT-29" data-bg="BG-4" value="BEISPIEL-SELLER-ID" required></label>
+              <label class="field-conditional"><span class="label-text">Global Seller ID</span> <input class="field-conditional" id="sellerGlobalId" data-bt="BT-29" data-bg="BG-4" placeholder="Scheme + ID später erweitern"></label>
+              <label class="field-conditional"><span class="label-text">Handelsregister-ID</span> <input class="field-conditional" id="sellerTradeId" data-bt="BT-30" data-bg="BG-4" placeholder="falls relevant"></label>
+              <label class="field-required"><span class="label-text">E-Mail / Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerEndpointId" data-bt="BT-34" data-bg="BG-4" value="seller@example.invalid" required></label>
+              <label class="field-required"><span class="label-text">Telefon<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerTelephone" data-bt="BT-42" data-bg="BG-6" value="+49 30 123456" required></label>
+              <label class="field-required"><span class="label-text">Endpoint schemeID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="sellerEndpointSchemeId" required data-bt="BT-34" data-bg="BG-4" value="EM"></label>
+              <label class="field-optional"><span class="label-text">Webseite</span> <input class="field-optional" id="sellerWebsiteUrl" data-bt="INFO" data-bg="BG-4" placeholder="https://example.invalid"></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Empfänger</legend>
             <div class="grid three">
-              <label><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="buyerName" data-bt="BT-44" data-bg="BG-7" value="Beispiel Empfänger" required></label>
-              <label><span class="label-text">Straße</span> <input id="buyerStreet" data-bt="BT-50" data-bg="BG-8" value="Empfängerweg 1"></label>
-              <label><span class="label-text">PLZ</span> <input id="buyerPostalCode" data-bt="BT-53" data-bg="BG-8" value="00000"></label>
-              <label><span class="label-text">Stadt</span> <input id="buyerCity" data-bt="BT-52" data-bg="BG-8" value="Beispielstadt"></label>
-              <label><span class="label-text">Land</span> <input id="buyerCountry" data-bt="BT-55" data-bg="BG-8" value="DE"></label>
-              <label><span class="label-text">Endpoint-ID</span> <input id="buyerEndpointId" data-bt="BT-49" data-bg="BG-7" value="buyer@example.invalid"></label>
-              <label><span class="label-text">Endpoint schemeID</span> <input id="buyerEndpointSchemeId" data-bt="BT-49" data-bg="BG-7" value="EM"></label>
+              <label class="field-required"><span class="label-text">Name<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerName" data-bt="BT-44" data-bg="BG-7" value="Beispiel Empfänger" required></label>
+              <label class="field-required"><span class="label-text">Straße<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerStreet" required data-bt="BT-50" data-bg="BG-8" value="Empfängerweg 1"></label>
+              <label class="field-required"><span class="label-text">PLZ<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerPostalCode" required data-bt="BT-53" data-bg="BG-8" value="00000"></label>
+              <label class="field-required"><span class="label-text">Stadt<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerCity" required data-bt="BT-52" data-bg="BG-8" value="Beispielstadt"></label>
+              <label class="field-required"><span class="label-text">Land<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerCountry" required data-bt="BT-55" data-bg="BG-8" value="DE"></label>
+              <label class="field-required"><span class="label-text">Endpoint-ID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerEndpointId" required data-bt="BT-49" data-bg="BG-7" value="buyer@example.invalid"></label>
+              <label class="field-required"><span class="label-text">Endpoint schemeID<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="buyerEndpointSchemeId" required data-bt="BT-49" data-bg="BG-7" value="EM"></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Lieferung</legend>
+            <div class="grid three">
+              <label class="field-conditional"><span class="label-text">Liefer-/Leistungsdatum</span> <input class="field-conditional" id="deliveryDate" data-bt="BT-72" data-bg="BG-13" type="date"></label>
+              <label class="field-optional"><span class="label-text">Lieferempfänger</span> <input class="field-optional" id="deliveryRecipientName" data-bt="BT-70" data-bg="BG-13" placeholder="falls abweichend"></label>
+              <label class="field-optional"><span class="label-text">Lieferstraße</span> <input class="field-optional" id="deliveryStreet" data-bt="BT-75" data-bg="BG-15" placeholder="optional"></label>
+              <label class="field-optional"><span class="label-text">Lieferort</span> <input class="field-optional" id="deliveryCity" data-bt="BT-77" data-bg="BG-15" placeholder="optional"></label>
+              <label class="field-optional"><span class="label-text">Lieferland</span> <input class="field-optional" id="deliveryCountry" data-bt="BT-80" data-bg="BG-15" placeholder="DE"></label>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Position</legend>
             <div class="grid four">
-              <label><span class="label-text">Beschreibung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineDescription" data-bt="BT-153" data-bg="BG-31" value="Beispiel Leistung" required></label>
-              <label><span class="label-text">Menge<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineQuantity" data-bt="BT-129" data-bg="BG-25" value="1" inputmode="decimal" required></label>
-              <label><span class="label-text">Einheit</span> <input id="lineUnitCode" data-bt="BT-130" data-bg="BG-25" value="C62"></label>
-              <label><span class="label-text">Nettopreis<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input id="lineNetPrice" data-bt="BT-146" data-bg="BG-29" value="100.00" inputmode="decimal" required></label>
-              <label><span class="label-text">MwSt %</span> <input id="lineTaxPercent" data-bt="BT-152" data-bg="BG-30" value="19" inputmode="decimal"></label>
+              <label class="field-required"><span class="label-text">Beschreibung<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="lineDescription" data-bt="BT-153" data-bg="BG-31" value="Beispiel Leistung" required></label>
+              <label class="field-required"><span class="label-text">Menge<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="lineQuantity" data-bt="BT-129" data-bg="BG-25" value="1" inputmode="decimal" required></label>
+              <label class="field-required"><span class="label-text">Einheit<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="lineUnitCode" required data-bt="BT-130" data-bg="BG-25" value="C62"></label>
+              <label class="field-required"><span class="label-text">Nettopreis<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="lineNetPrice" data-bt="BT-146" data-bg="BG-29" value="100.00" inputmode="decimal" required></label>
+              <label class="field-required"><span class="label-text">MwSt %<span class="required-star" aria-label="Pflichtfeld"> *</span></span> <input class="field-required" id="lineTaxPercent" required data-bt="BT-152" data-bg="BG-30" value="19" inputmode="decimal"></label>
             </div>
           </fieldset>
 
-          <p class="helper">Die XRechnung-BT/BG-Zuordnung steckt im Hintergrund an den Formularfeldern. Nutzer füllen weiterhin das Formular aus; Agenten und Tests können die Feldmetadaten maschinenlesbar verwenden.</p>
+          <fieldset>
+            <legend>Zu-/Abschläge, Steuern, Anhänge, Ausgabe</legend>
+            <div class="grid four">
+              <label class="field-conditional"><span class="label-text">Abschlag Betrag</span> <input class="field-conditional" id="allowanceAmount" data-bt="BT-92" data-bg="BG-20" inputmode="decimal" placeholder="0.00"></label>
+              <label class="field-conditional"><span class="label-text">Abschlag Grundcode</span> <input class="field-conditional" id="allowanceReasonCode" data-bt="BT-98" data-bg="BG-20" placeholder="falls Abschlag"></label>
+              <label class="field-conditional"><span class="label-text">Zuschlag Betrag</span> <input class="field-conditional" id="chargeAmount" data-bt="BT-99" data-bg="BG-21" inputmode="decimal" placeholder="0.00"></label>
+              <label class="field-conditional"><span class="label-text">Zuschlag Grundcode</span> <input class="field-conditional" id="chargeReasonCode" data-bt="BT-105" data-bg="BG-21" placeholder="falls Zuschlag"></label>
+              <label class="field-conditional"><span class="label-text">Steuerbefreiungsgrund</span> <input class="field-conditional" id="taxExemptionReason" data-bt="BT-120" data-bg="BG-23" placeholder="bei 0% / exempt"></label>
+              <label class="field-conditional"><span class="label-text">Anhang-ID</span> <input class="field-conditional" id="attachmentId" data-bt="BT-122" data-bg="BG-24" placeholder="falls Anhang"></label>
+              <label class="field-conditional"><span class="label-text">Anhang-Beschreibung</span> <input class="field-conditional" id="attachmentDescription" data-bt="BT-123" data-bg="BG-24" placeholder="falls Anhang"></label>
+              <label class="field-optional"><span class="label-text">Ausgabesprache</span> <input class="field-optional" id="outputLanguage" data-bt="OUTPUT" data-bg="OUTPUT" value="de"></label>
+              <label class="field-optional"><span class="label-text">Einheitenanzeige</span> <input class="field-optional" id="quantityUnitDisplayMode" data-bt="OUTPUT" data-bg="OUTPUT" value="code"></label>
+            </div>
+          </fieldset>
+
+          <p class="helper">Die XRechnung-BT/BG-Zuordnung steckt im Hintergrund an den Formularfeldern. Sichtbare Eingaben werden entweder in das UBL-Artefakt übernommen, als UBL-only gekennzeichnet oder als Ausgabeoption ohne XML-Mapping markiert; Agenten und Tests können die Feldmetadaten maschinenlesbar verwenden.</p>
 
           <details class="advanced-fields">
             <summary>Weitere XRechnung-Felder</summary>
@@ -212,7 +253,8 @@ curl -L https://github.com/itplr-kosit/validator-configuration-xrechnung/release
         <li>Keine Datenbank, keine Cookies, kein Tracking.</li>
         <li>Keine Netzwerk-API im Generator-Code.</li>
         <li>Lokale Dateiauswahl liest TXT/CSV/XML, eingebettetes PDF-Rechnungs-XML und einfachen eingebetteten PDF-Text nur im Browser-Tab.</li>
-        <li>PDFs werden nicht hochgeladen; erkanntes PDF-XML/Text ist nur ein Vorschlag. Scan-OCR sowie DOC/DOCX laufen nur über eine geprüfte lokale Browser-Engine oder ein lokales Desktop/CLI-Modul und bleiben prüfpflichtig.</li>
+        <li>Local review funnel and field-priority behavior: source file or form entry → local recognition → red/yellow/white field review → browser validation → export.</li>
+        <li>Production gap still visible by design: full KoSIT-equivalent browser validation, native PDF/A-3 assembly, robust OCR/DOC/DOCX extraction and every conditional BT/BG export mapping need local engines/parity tests before legal/compliance-grade claims.</li>
       </ul>
       <p>Für andere Agenten/LLMs steht <code>window.XInvoice.convertForAgent(invoice, formatId)</code> bereit. Die API gibt strukturierte Fehler zurück, statt bei unvollständigen Daten still Artefakte zu bauen.</p>
     </section>

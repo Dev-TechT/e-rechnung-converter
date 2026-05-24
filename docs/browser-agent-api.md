@@ -18,19 +18,25 @@ The app marks required fields with `*` and blocks conversion if any are missing:
 
 - invoice number
 - issue date
+- invoice type code
+- currency
 - due date
 - Leitweg-ID / BuyerReference
+- business process / ProfileID
 - order number / buyer order reference
-- seller name
-- seller email address / endpoint ID
+- seller name, street, postal code, city and country
+- seller email address / endpoint ID and endpoint schemeID
 - seller identifier
 - seller telephone number
-- buyer name
+- buyer name, street, postal code, city and country
+- buyer endpoint ID and endpoint schemeID
 - payment IBAN
 - payment terms
 - line description
 - line quantity
+- line unit code
 - line net price
+- line tax percent
 
 ## Local OCR/PDF extractor hook
 
@@ -79,7 +85,7 @@ The PDF.js candidate facts above remain useful for a later stronger engine, but 
 
 ## Local review funnel
 
-PDF24 and invoice-converter.com use the familiar pattern “upload/select invoice -> automatic extraction -> review -> choose e-invoice format -> validate/export”. This app mirrors that understandable flow but keeps the local-first boundary stricter:
+The local review funnel uses the familiar pattern “select source document -> automatic local extraction -> review -> choose e-invoice format -> validate/export”. This app keeps the local-first boundary strict:
 
 Datei auswählen → lokale Erkennung → prüfen und ergänzen → Browser-Validierung → Export
 
@@ -98,20 +104,33 @@ In the browser console or another browser automation agent:
 const invoice = {
   invoiceNumber: 'RE-2025-0001',
   issueDate: '2025-01-15',
+  invoiceTypeCode: '380',
   dueDate: '2025-02-01',
   currency: 'EUR',
+  businessProcessType: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
   buyerReference: 'BEISPIEL-LEITWEG-001',
   orderNumber: 'BEISPIEL-ORDER-001',
   paymentTerms: 'Zahlbar innerhalb von 14 Tagen ohne Abzug.',
   seller: {
     name: 'Beispiel Lieferant GmbH',
+    street: 'Musterstraße 1',
+    postalCode: '10115',
+    city: 'Berlin',
     country: 'DE',
     endpointId: 'seller@example.invalid',
     endpointSchemeId: 'EM',
     sellerIdentifier: 'BEISPIEL-SELLER-ID',
     telephone: '+49 30 123456'
   },
-  buyer: { name: 'Beispiel Empfänger', country: 'DE' },
+  buyer: {
+    name: 'Beispiel Empfänger',
+    street: 'Empfängerweg 1',
+    postalCode: '00000',
+    city: 'Beispielstadt',
+    country: 'DE',
+    endpointId: 'buyer@example.invalid',
+    endpointSchemeId: 'EM'
+  },
   paymentIban: 'DE89370400440532013000',
   lines: [{ description: 'Beispiel Leistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' }]
 };
