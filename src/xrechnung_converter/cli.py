@@ -37,6 +37,8 @@ def invoice_from_json(path: Path) -> Invoice:
         buyer=Party(**data["buyer"]),
         lines=lines,
         payment_iban=data.get("payment_iban", ""),
+        payment_terms=data.get("payment_terms", data.get("note", "")),
+        order_reference=data.get("order_reference", data.get("order_number", "")),
         note=data.get("note", ""),
     )
 
@@ -76,6 +78,7 @@ def invoice_from_csv(path: Path) -> Invoice:
             endpoint_id=first.get("seller_endpoint_id", ""),
             endpoint_scheme_id=first.get("seller_endpoint_scheme_id", "EM"),
             telephone=first.get("seller_telephone", ""),
+            identifier=first.get("seller_identifier", ""),
         ),
         buyer=Party(
             name=first["buyer_name"],
@@ -90,6 +93,8 @@ def invoice_from_csv(path: Path) -> Invoice:
         ),
         lines=lines,
         payment_iban=first.get("payment_iban", ""),
+        payment_terms=first.get("payment_terms") or first.get("note", ""),
+        order_reference=first.get("order_reference") or first.get("order_number", ""),
         note=first.get("note", ""),
     )
 

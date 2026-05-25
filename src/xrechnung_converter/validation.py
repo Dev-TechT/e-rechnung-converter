@@ -48,15 +48,26 @@ def basic_validate_ubl(xml_text: str) -> ValidationReport:
         "IssueDate": "cbc:IssueDate",
         "DocumentCurrencyCode": "cbc:DocumentCurrencyCode",
         "BuyerReference": "cbc:BuyerReference",
+        "OrderReference": "cac:OrderReference/cbc:ID",
         "AccountingSupplierParty": "cac:AccountingSupplierParty",
         "AccountingCustomerParty": "cac:AccountingCustomerParty",
+        "PaymentMeans IBAN": "cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID",
+        "PaymentTerms": "cac:PaymentTerms/cbc:Note",
         "InvoiceLine": "cac:InvoiceLine",
     }
+    aggregate_labels = {"AccountingSupplierParty", "AccountingCustomerParty", "InvoiceLine"}
     for label, path in required.items():
         found = root.find(path, namespaces=NS)
         text = _text(root, path)
-        if found is None or (label not in {"AccountingSupplierParty", "AccountingCustomerParty", "InvoiceLine"} and not text):
+        if found is None or (label not in aggregate_labels and not text):
             errors.append(f"Missing required field: {label}")
+
+    if not _text(root, "cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID"):
+        errors.append("Missing required field: SellerPartyIdentification")
+    if not _text(root, "cac:AccountingSupplierParty/cac:Party/cac:Contact/cbc:Telephone"):
+        errors.append("Missing required field: SellerContactTelephone")
+    if not _text(root, "cac:AccountingSupplierParty/cac:Party/cac:Contact/cbc:ElectronicMail"):
+        errors.append("Missing required field: SellerContactEmail")
 
     for amount_path in [
         "cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount",

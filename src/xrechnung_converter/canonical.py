@@ -31,6 +31,7 @@ class Party:
     endpoint_id: str = ""
     endpoint_scheme_id: str = "EM"
     telephone: str = ""
+    identifier: str = ""
 
 
 @dataclass
@@ -73,6 +74,8 @@ class Invoice:
     buyer: Party
     lines: list[InvoiceLine]
     payment_iban: str = ""
+    payment_terms: str = ""
+    order_reference: str = ""
     note: str = ""
 
     @property

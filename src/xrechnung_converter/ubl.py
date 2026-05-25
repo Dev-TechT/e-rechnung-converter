@@ -38,6 +38,9 @@ def _party(parent: ET.Element, party: Party) -> None:
     party_el = _sub(parent, cac("Party"))
     if party.endpoint_id:
         _sub(party_el, cbc("EndpointID"), party.endpoint_id, schemeID=party.endpoint_scheme_id)
+    if party.identifier:
+        party_id = _sub(party_el, cac("PartyIdentification"))
+        _sub(party_id, cbc("ID"), party.identifier)
     name = _sub(party_el, cac("PartyName"))
     _sub(name, cbc("Name"), party.name)
     address = _sub(party_el, cac("PostalAddress"))
@@ -76,6 +79,9 @@ def invoice_to_ubl_xml(invoice: Invoice) -> str:
         _sub(root, cbc("Note"), invoice.note)
     _sub(root, cbc("DocumentCurrencyCode"), invoice.currency)
     _sub(root, cbc("BuyerReference"), invoice.buyer_reference)
+    if invoice.order_reference:
+        order_reference = _sub(root, cac("OrderReference"))
+        _sub(order_reference, cbc("ID"), invoice.order_reference)
 
     supplier = _sub(root, cac("AccountingSupplierParty"))
     _party(supplier, invoice.seller)
@@ -87,6 +93,9 @@ def invoice_to_ubl_xml(invoice: Invoice) -> str:
         _sub(payment, cbc("PaymentMeansCode"), "58")
         account = _sub(payment, cac("PayeeFinancialAccount"))
         _sub(account, cbc("ID"), invoice.payment_iban)
+    if invoice.payment_terms:
+        payment_terms = _sub(root, cac("PaymentTerms"))
+        _sub(payment_terms, cbc("Note"), invoice.payment_terms)
 
     tax_total = _sub(root, cac("TaxTotal"))
     _sub(tax_total, cbc("TaxAmount"), fmt_amount(invoice.tax_amount), currencyID=invoice.currency)
