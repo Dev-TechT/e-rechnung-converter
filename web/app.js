@@ -415,11 +415,18 @@
     const totals = calculateTotals(invoice.lines, { allowance: invoice.allowance, charge: invoice.charge });
     if (Number.isFinite(totals.taxable) && totals.taxable < 0) errors.push('Abschlag/Zuschlag erzeugt eine negative steuerpflichtige Summe. Bitte Beträge prüfen.');
     if (Number.isFinite(totals.payable) && totals.payable < 0) errors.push('Abschlag/Zuschlag erzeugt einen negativen Zahlbetrag. Bitte Beträge prüfen.');
+    if (hasUngroundedMixedVatAdjustment(totals, invoice)) {
+      errors.push('Abschlag/Zuschlag bei gemischten MwSt-Sätzen benötigt eine Steuerkategorie-Zuordnung je Abschlag/Zuschlag. Bitte ohne Abschlag/Zuschlag exportieren oder die Zuordnung später erfassen.');
+    }
     if (totals.taxGroups.some((group) => Number.isFinite(group.taxable) && group.taxable < 0)) {
       errors.push('Abschlag/Zuschlag kann ohne Steuerkategorie-Zuordnung keine negative Steuergruppe erzeugen. Bitte Abschlag/Zuschlag reduzieren oder später mit gruppierter Steuerlogik erfassen.');
     }
 
     return { ok: errors.length === 0, errors, warnings };
+  }
+
+  function hasUngroundedMixedVatAdjustment(totals, invoice) {
+    return (hasAmount(invoice.allowance) || hasAmount(invoice.charge)) && (totals.taxGroups || []).length > 1;
   }
 
   function calculateTaxGroups(lines) {
@@ -1285,14 +1292,21 @@
     }
     let index = 0;
     const stack = [];
+    let rootCount = 0;
     const tagPattern = /<([^<>]+)>/g;
     let token;
     while ((token = tagPattern.exec(source))) {
       const between = source.slice(index, token.index);
       if (/[<>]/.test(between)) return 'XML ist nicht wohlgeformt: ungültiges Markup.';
+      if (/&(?!amp;|lt;|gt;|quot;|apos;|#[0-9]+;|#x[0-9A-Fa-f]+;)/.test(between)) return 'XML ist nicht wohlgeformt: ungültige Entität.';
+      if (stack.length === 0 && between.trim()) return 'XML ist nicht wohlgeformt: Text außerhalb des Root-Elements.';
       index = tagPattern.lastIndex;
       const raw = token[1].trim();
-      if (!raw || raw.startsWith('?') || raw.startsWith('!')) continue;
+      if (!raw) continue;
+      if (raw.startsWith('?') || raw.startsWith('!')) {
+        if (stack.length === 0 && rootCount > 0 && source.slice(index).trim()) return 'XML ist nicht wohlgeformt: Inhalt nach dem Root-Element.';
+        continue;
+      }
       const closing = raw.startsWith('/');
       const body = closing ? raw.slice(1).trim() : raw;
       if (closing) {
@@ -1304,18 +1318,30 @@
       const openBody = selfClosing ? body.slice(0, -1).trim() : body;
       const nameMatch = openBody.match(/^([A-Za-z_][\w:.-]*)(?:\s+([\s\S]*))?$/);
       if (!nameMatch) return 'XML ist nicht wohlgeformt: ungültiger Start-Tag.';
+      if (stack.length === 0) {
+        rootCount += 1;
+        if (rootCount > 1) return 'XML ist nicht wohlgeformt: mehrere Root-Elemente.';
+      }
       const attrs = nameMatch[2] || '';
+      const seenAttrs = new Set();
       let cursor = 0;
       const attrPattern = /([A-Za-z_][\w:.-]*)\s*=\s*("[^"]*"|'[^']*')/g;
       let attr;
       while ((attr = attrPattern.exec(attrs))) {
         if (attrs.slice(cursor, attr.index).trim()) return 'XML ist nicht wohlgeformt: ungültiges Attribut.';
+        if (seenAttrs.has(attr[1])) return 'XML ist nicht wohlgeformt: doppeltes Attribut.';
+        seenAttrs.add(attr[1]);
+        if (/&(?!amp;|lt;|gt;|quot;|apos;|#[0-9]+;|#x[0-9A-Fa-f]+;)/.test(attr[2])) return 'XML ist nicht wohlgeformt: ungültige Entität.';
         cursor = attrPattern.lastIndex;
       }
       if (attrs.slice(cursor).trim()) return 'XML ist nicht wohlgeformt: ungültiges Attribut.';
       if (!selfClosing) stack.push(nameMatch[1]);
     }
-    if (/[<>]/.test(source.slice(index))) return 'XML ist nicht wohlgeformt: ungültiges Markup.';
+    const trailing = source.slice(index);
+    if (/[<>]/.test(trailing)) return 'XML ist nicht wohlgeformt: ungültiges Markup.';
+    if (/&(?!amp;|lt;|gt;|quot;|apos;|#[0-9]+;|#x[0-9A-Fa-f]+;)/.test(trailing)) return 'XML ist nicht wohlgeformt: ungültige Entität.';
+    if (stack.length === 0 && rootCount > 0 && trailing.trim()) return 'XML ist nicht wohlgeformt: Text außerhalb des Root-Elements.';
+    if (rootCount === 0) return 'XML ist nicht wohlgeformt: Root-Element fehlt.';
     return stack.length ? 'XML ist nicht wohlgeformt: Tags sind nicht geschlossen.' : '';
   }
 

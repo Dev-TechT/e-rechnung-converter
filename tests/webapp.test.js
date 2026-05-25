@@ -305,6 +305,19 @@ test('browser xrechnung validation API returns local-only structured reports wit
   report = app.validateXRechnungInBrowser('<Invoice a="unterminated><cbc:CustomizationID>urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID><cbc:BuyerReference>LW-1</cbc:BuyerReference></Invoice>', { formatId: 'xrechnung-ubl' });
   assert(report.ok === false, 'malformed attributes must fail browser sanity validation');
   assert(report.checks.some((check) => check.name === 'well-formed XML' && !check.ok), 'well-formed XML check should fail for bad attributes');
+
+  const validWithEntities = app.validateXRechnungInBrowser('<Invoice note="&quot;quoted&quot; &gt; plain"><cbc:CustomizationID>urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID><cbc:BuyerReference>LW-1 &amp; safe</cbc:BuyerReference></Invoice>', { formatId: 'xrechnung-ubl' });
+  assert(validWithEntities.ok === true, 'predefined XML entities must remain valid in fallback well-formedness checks');
+
+  for (const malformed of [
+    '<Invoice></Invoice><Invoice></Invoice>',
+    '<Invoice><cbc:CustomizationID>urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID><cbc:BuyerReference>LW-1 & bad</cbc:BuyerReference></Invoice>',
+    '<Invoice a="1" a="2"><cbc:CustomizationID>urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID><cbc:BuyerReference>LW-1</cbc:BuyerReference></Invoice>',
+  ]) {
+    report = app.validateXRechnungInBrowser(malformed, { formatId: 'xrechnung-ubl' });
+    assert(report.ok === false, `malformed XML must fail browser sanity validation: ${malformed}`);
+    assert(report.checks.some((check) => check.name === 'well-formed XML' && !check.ok), 'well-formed XML check should fail for malformed XML');
+  }
 });
 
 test('browser totals and XML tax subtotals handle mixed VAT rates per line', () => {
@@ -327,17 +340,24 @@ test('browser totals and XML tax subtotals handle mixed VAT rates per line', () 
   assert(artifact.content.includes('<cbc:TaxableAmount currencyID="EUR">100.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">19.00</cbc:TaxAmount><cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>19.00</cbc:Percent>'), 'UBL missing 19% tax subtotal');
 });
 
-test('preflight blocks adjustments that would create negative mixed-VAT tax groups', () => {
+test('preflight blocks adjustments when mixed VAT groups lack adjustment tax category allocation', () => {
   const invoice = sampleInvoice({
     allowance: { amount: '50.00', reasonCode: '95' },
     lines: [
-      { description: 'Ermäßigte Leistung', quantity: '1', unitCode: 'C62', netPrice: '10.00', taxCategory: 'AA', taxPercent: '7' },
+      { description: 'Ermäßigte Leistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'AA', taxPercent: '7' },
       { description: 'Regelleistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' },
     ],
   });
   const result = app.convertForAgent(invoice, 'xrechnung-ubl');
-  assert(result.ok === false, 'allowance must not generate a negative VAT subtotal');
-  assert(result.errors.some((error) => /negative Steuergruppe|Steuerkategorie-Zuordnung/i.test(error)), 'negative tax-group error should be explicit');
+  assert(result.ok === false, 'mixed-VAT allowance without adjustment category allocation must fail closed');
+  assert(result.errors.some((error) => /Steuerkategorie-Zuordnung|gemischten MwSt/i.test(error)), 'mixed tax-group allocation error should be explicit');
+
+  const chargeResult = app.convertForAgent({
+    ...invoice,
+    allowance: { amount: '', reasonCode: '' },
+    charge: { amount: '10.00', reasonCode: 'FC' },
+  }, 'xrechnung-ubl');
+  assert(chargeResult.ok === false, 'mixed-VAT charge without adjustment category allocation must fail closed');
 });
 
 test('local document intake parses csv txt and xml snippets without network', () => {
