@@ -4,6 +4,8 @@
   "due_date": "2026-06-01",
   "currency": "EUR",
   "buyer_reference": "DEMO-LEITWEG-ID",
+  "order_reference": "DEMO-ORDER-001",
+  "payment_terms": "Zahlbar innerhalb von 14 Tagen ohne Abzug.",
   "seller": {
     "name": "Demo Lieferant GmbH",
     "street": "Hauptstr. 1",
@@ -13,7 +15,8 @@
     "vat_id": "DE123456789",
     "endpoint_id": "seller@example.invalid",
     "endpoint_scheme_id": "EM",
-    "telephone": "+49 30 123456"
+    "telephone": "+49 30 123456",
+    "identifier": "DEMO-SELLER-ID"
   },
   "buyer": {
     "name": "Demo Empfänger",

@@ -415,18 +415,49 @@
     const totals = calculateTotals(invoice.lines, { allowance: invoice.allowance, charge: invoice.charge });
     if (Number.isFinite(totals.taxable) && totals.taxable < 0) errors.push('Abschlag/Zuschlag erzeugt eine negative steuerpflichtige Summe. Bitte Beträge prüfen.');
     if (Number.isFinite(totals.payable) && totals.payable < 0) errors.push('Abschlag/Zuschlag erzeugt einen negativen Zahlbetrag. Bitte Beträge prüfen.');
+    if (totals.taxGroups.some((group) => Number.isFinite(group.taxable) && group.taxable < 0)) {
+      errors.push('Abschlag/Zuschlag kann ohne Steuerkategorie-Zuordnung keine negative Steuergruppe erzeugen. Bitte Abschlag/Zuschlag reduzieren oder später mit gruppierter Steuerlogik erfassen.');
+    }
 
     return { ok: errors.length === 0, errors, warnings };
   }
 
+  function calculateTaxGroups(lines) {
+    const groups = new Map();
+    for (const line of lines || []) {
+      const category = String(line?.taxCategory || 'S').trim() || 'S';
+      const percent = decimal(line?.taxPercent, 19);
+      const taxable = money(decimal(line?.quantity) * decimal(line?.netPrice));
+      const key = `${category}\u0000${formatMoney(percent)}`;
+      const current = groups.get(key) || { category, percent, taxable: 0 };
+      current.taxable = money(current.taxable + taxable);
+      groups.set(key, current);
+    }
+    return [...groups.values()].map((group) => ({
+      ...group,
+      taxable: money(group.taxable),
+      tax: money(group.taxable * group.percent / 100),
+    }));
+  }
+
   function calculateTotals(lines, adjustments = {}) {
-    const lineNet = lines.reduce((sum, line) => sum + decimal(line.quantity) * decimal(line.netPrice), 0);
+    const lineTaxGroups = calculateTaxGroups(lines);
+    const lineNet = lineTaxGroups.reduce((sum, group) => sum + group.taxable, 0);
     const allowance = hasAmount(adjustments.allowance) ? decimal(adjustments.allowance.amount) : 0;
     const charge = hasAmount(adjustments.charge) ? decimal(adjustments.charge.amount) : 0;
     const taxable = lineNet - allowance + charge;
-    const firstTax = lines[0] ? decimal(lines[0].taxPercent, 19) : 19;
-    const tax = money(taxable * firstTax / 100);
-    return { lineNet: money(lineNet), allowance: money(allowance), charge: money(charge), taxable: money(taxable), tax, payable: money(taxable + tax), taxPercent: firstTax };
+    const firstTaxGroup = lineTaxGroups[0] || { category: 'S', percent: 19, taxable: 0, tax: 0 };
+    const adjustmentDelta = money(charge - allowance);
+    const taxGroups = lineTaxGroups.map((group, index) => {
+      const adjustedTaxable = index === 0 ? money(group.taxable + adjustmentDelta) : group.taxable;
+      return {
+        ...group,
+        taxable: adjustedTaxable,
+        tax: money(adjustedTaxable * group.percent / 100),
+      };
+    });
+    const tax = money(taxGroups.reduce((sum, group) => sum + group.tax, 0));
+    return { lineNet: money(lineNet), allowance: money(allowance), charge: money(charge), taxable: money(taxable), tax, payable: money(taxable + tax), taxPercent: firstTaxGroup.percent, taxGroups };
   }
 
   function optionalXml(value, render) {
@@ -508,6 +539,8 @@
   </cac:InvoiceLine>`;
     }).join('');
 
+    const taxSubtotalXml = totals.taxGroups.map((group) => `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${formatMoney(group.taxable)}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${formatMoney(group.tax)}</cbc:TaxAmount><cac:TaxCategory><cbc:ID>${escapeXml(group.category)}</cbc:ID><cbc:Percent>${formatMoney(group.percent)}</cbc:Percent>${optionalXml(invoice.tax?.exemptionReason, (value) => `<cbc:TaxExemptionReason>${escapeXml(value)}</cbc:TaxExemptionReason>`)}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal>`).join('');
+
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:CustomizationID>${customization}</cbc:CustomizationID>
@@ -528,7 +561,7 @@
   <cac:AccountingCustomerParty>${partyUblXml(invoice.buyer)}
   </cac:AccountingCustomerParty>${deliveryUblXml(invoice.delivery)}
   <cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>${escapeXml(invoice.paymentIban)}</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>${allowanceChargeUblXml(invoice.allowance, false, currency)}${allowanceChargeUblXml(invoice.charge, true, currency)}
-  <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount><cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>${formatMoney(totals.taxPercent)}</cbc:Percent>${optionalXml(invoice.tax?.exemptionReason, (value) => `<cbc:TaxExemptionReason>${escapeXml(value)}</cbc:TaxExemptionReason>`)}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>
+  <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${formatMoney(totals.tax)}</cbc:TaxAmount>${taxSubtotalXml}</cac:TaxTotal>
   <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="${currency}">${formatMoney(totals.lineNet)}</cbc:LineExtensionAmount><cbc:TaxExclusiveAmount currencyID="${currency}">${formatMoney(totals.taxable)}</cbc:TaxExclusiveAmount><cbc:TaxInclusiveAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:TaxInclusiveAmount><cbc:AllowanceTotalAmount currencyID="${currency}">${formatMoney(totals.allowance)}</cbc:AllowanceTotalAmount><cbc:ChargeTotalAmount currencyID="${currency}">${formatMoney(totals.charge)}</cbc:ChargeTotalAmount><cbc:PayableAmount currencyID="${currency}">${formatMoney(totals.payable)}</cbc:PayableAmount></cac:LegalMonetaryTotal>${lineXml}
 </Invoice>`;
   }
@@ -1241,17 +1274,63 @@
     };
   }
 
+  function xmlWellFormednessError(content) {
+    const source = String(content || '');
+    if (!/^\s*</.test(source)) return 'XML ist leer oder kein XML.';
+    if (/<script[\s>]/i.test(source)) return 'XML enthält Script-Markup.';
+    if (typeof DOMParser === 'function') {
+      const parsed = new DOMParser().parseFromString(source, 'application/xml');
+      if (parsed.getElementsByTagName('parsererror').length) return 'XML ist nicht wohlgeformt.';
+      return '';
+    }
+    let index = 0;
+    const stack = [];
+    const tagPattern = /<([^<>]+)>/g;
+    let token;
+    while ((token = tagPattern.exec(source))) {
+      const between = source.slice(index, token.index);
+      if (/[<>]/.test(between)) return 'XML ist nicht wohlgeformt: ungültiges Markup.';
+      index = tagPattern.lastIndex;
+      const raw = token[1].trim();
+      if (!raw || raw.startsWith('?') || raw.startsWith('!')) continue;
+      const closing = raw.startsWith('/');
+      const body = closing ? raw.slice(1).trim() : raw;
+      if (closing) {
+        if (!/^[A-Za-z_][\w:.-]*\s*$/.test(body)) return 'XML ist nicht wohlgeformt: ungültiger schließender Tag.';
+        if (stack.pop() !== body) return 'XML ist nicht wohlgeformt: schließende Tags passen nicht.';
+        continue;
+      }
+      const selfClosing = body.endsWith('/');
+      const openBody = selfClosing ? body.slice(0, -1).trim() : body;
+      const nameMatch = openBody.match(/^([A-Za-z_][\w:.-]*)(?:\s+([\s\S]*))?$/);
+      if (!nameMatch) return 'XML ist nicht wohlgeformt: ungültiger Start-Tag.';
+      const attrs = nameMatch[2] || '';
+      let cursor = 0;
+      const attrPattern = /([A-Za-z_][\w:.-]*)\s*=\s*("[^"]*"|'[^']*')/g;
+      let attr;
+      while ((attr = attrPattern.exec(attrs))) {
+        if (attrs.slice(cursor, attr.index).trim()) return 'XML ist nicht wohlgeformt: ungültiges Attribut.';
+        cursor = attrPattern.lastIndex;
+      }
+      if (attrs.slice(cursor).trim()) return 'XML ist nicht wohlgeformt: ungültiges Attribut.';
+      if (!selfClosing) stack.push(nameMatch[1]);
+    }
+    if (/[<>]/.test(source.slice(index))) return 'XML ist nicht wohlgeformt: ungültiges Markup.';
+    return stack.length ? 'XML ist nicht wohlgeformt: Tags sind nicht geschlossen.' : '';
+  }
+
   function validateXRechnungInBrowser(xml, options = {}) {
     const content = String(xml || '');
     const formatId = options.formatId || (/<rsm:CrossIndustryInvoice\b|<CrossIndustryInvoice\b/i.test(content) ? 'xrechnung-cii' : 'xrechnung-ubl');
     const checks = [];
     const errors = [];
+    const wellFormednessError = xmlWellFormednessError(content);
     function check(name, condition, message) {
       const ok = Boolean(condition);
       checks.push({ name, ok });
       if (!ok) errors.push(message);
     }
-    check('well-formed-ish XML', /^\s*</.test(content) && !/<script[\s>]/i.test(content), 'XML ist leer, kein XML oder enthält Script-Markup.');
+    check('well-formed XML', !wellFormednessError, wellFormednessError || 'XML ist nicht wohlgeformt.');
     if (formatId === 'xrechnung-cii') {
       check('CII root', /<(?:[A-Za-z0-9_-]+:)?CrossIndustryInvoice\b/i.test(content), 'CII CrossIndustryInvoice Root fehlt.');
       check('XRechnung guideline', /urn:xeinkauf\.de:kosit:xrechnung_3\.0/i.test(content), 'XRechnung Guideline/Customization fehlt.');

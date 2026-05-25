@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 
 from xrechnung_converter.canonical import Invoice, InvoiceLine, Party, TaxCategory
 from xrechnung_converter.ubl import invoice_to_ubl_xml
+from xrechnung_converter.validation import basic_validate_ubl
 
 
 def test_xrechnung_ubl_contains_seller_contact_for_kosit_bg6():
@@ -22,10 +23,13 @@ def test_xrechnung_ubl_contains_seller_contact_for_kosit_bg6():
             endpoint_id="seller@example.invalid",
             endpoint_scheme_id="EM",
             telephone="+49 30 123456",
+            identifier="DEMO-SELLER-ID",
         ),
         buyer=Party(name="Demo Empfänger", street="Weg 1", city="Stadt", postal_code="00000", country="DE"),
         lines=[InvoiceLine("Beratung", Decimal("1"), "C62", Decimal("100"), TaxCategory("S", Decimal("19")))],
         payment_iban="DE89370400440532013000",
+        payment_terms="Zahlbar innerhalb von 14 Tagen ohne Abzug.",
+        order_reference="DEMO-ORDER-001",
     )
     xml_text = invoice_to_ubl_xml(invoice)
     root = ET.fromstring(xml_text)
@@ -40,3 +44,7 @@ def test_xrechnung_ubl_contains_seller_contact_for_kosit_bg6():
     assert contact.findtext("cbc:Name", namespaces=ns) == "Demo Lieferant GmbH"
     assert contact.findtext("cbc:Telephone", namespaces=ns) == "+49 30 123456"
     assert contact.findtext("cbc:ElectronicMail", namespaces=ns) == "seller@example.invalid"
+    assert root.findtext("cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID", namespaces=ns) == "DEMO-SELLER-ID"
+    assert root.findtext("cac:OrderReference/cbc:ID", namespaces=ns) == "DEMO-ORDER-001"
+    assert root.findtext("cac:PaymentTerms/cbc:Note", namespaces=ns) == "Zahlbar innerhalb von 14 Tagen ohne Abzug."
+    assert basic_validate_ubl(xml_text).ok is True

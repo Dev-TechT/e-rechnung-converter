@@ -23,6 +23,8 @@ def minimal_invoice() -> Invoice:
             vat_id="DEMO-VAT-ID",
             endpoint_id="seller@example.invalid",
             endpoint_scheme_id="EM",
+            telephone="+49 30 123456",
+            identifier="DEMO-SELLER-ID",
         ),
         buyer=Party(
             name="Demo Empfänger",
@@ -43,6 +45,8 @@ def minimal_invoice() -> Invoice:
             )
         ],
         payment_iban="DE00DEMO00000000000000",
+        payment_terms="Zahlbar innerhalb von 14 Tagen ohne Abzug.",
+        order_reference="DEMO-ORDER-001",
     )
 
 
@@ -60,6 +64,10 @@ def test_invoice_to_ubl_contains_xrechnung_customization_and_valid_totals():
     assert "xrechnung_3.0" in root.findtext("cbc:CustomizationID", namespaces=ns).lower()
     assert root.findtext("cbc:ID", namespaces=ns) == "RE-2026-0001"
     assert root.findtext("cbc:BuyerReference", namespaces=ns) == "DEMO-LEITWEG-ID"
+    assert root.findtext("cac:OrderReference/cbc:ID", namespaces=ns) == "DEMO-ORDER-001"
+    assert root.findtext("cac:PaymentTerms/cbc:Note", namespaces=ns) == "Zahlbar innerhalb von 14 Tagen ohne Abzug."
+    assert root.findtext("cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID", namespaces=ns) == "DEMO-SELLER-ID"
+    assert root.findtext("cac:AccountingSupplierParty/cac:Party/cac:Contact/cbc:Telephone", namespaces=ns) == "+49 30 123456"
     assert root.findtext("cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount", namespaces=ns) == "200.00"
     assert root.findtext("cac:TaxTotal/cbc:TaxAmount", namespaces=ns) == "38.00"
     assert root.findtext("cac:LegalMonetaryTotal/cbc:PayableAmount", namespaces=ns) == "238.00"

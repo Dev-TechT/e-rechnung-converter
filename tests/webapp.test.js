@@ -296,6 +296,48 @@ test('browser xrechnung validation API returns local-only structured reports wit
   report = app.validateXRechnungInBrowser('<Invoice></Invoice>', { formatId: 'xrechnung-ubl' });
   assert(report.ok === false, 'malformed UBL should fail browser-local report');
   assert(report.errors.some((error) => /CustomizationID|BuyerReference|UBL/i.test(error)), 'malformed report should include structural error messages');
+
+  report = app.validateXRechnungInBrowser('<Invoice><cbc:CustomizationID>urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID><cbc:BuyerReference>LW-1</cbc:BuyerReference>', { formatId: 'xrechnung-ubl' });
+  assert(report.ok === false, 'unclosed XML must fail browser sanity validation');
+  assert(report.checks.some((check) => check.name === 'well-formed XML' && !check.ok), 'well-formed XML check should fail');
+  assert(report.errors.some((error) => /wohlgeformt|parse|XML/i.test(error)), 'well-formedness error should be explicit');
+
+  report = app.validateXRechnungInBrowser('<Invoice a="unterminated><cbc:CustomizationID>urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID><cbc:BuyerReference>LW-1</cbc:BuyerReference></Invoice>', { formatId: 'xrechnung-ubl' });
+  assert(report.ok === false, 'malformed attributes must fail browser sanity validation');
+  assert(report.checks.some((check) => check.name === 'well-formed XML' && !check.ok), 'well-formed XML check should fail for bad attributes');
+});
+
+test('browser totals and XML tax subtotals handle mixed VAT rates per line', () => {
+  const invoice = sampleInvoice({
+    lines: [
+      { description: 'Ermäßigte Leistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'AA', taxPercent: '7' },
+      { description: 'Regelleistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' },
+    ],
+  });
+  const totals = app.calculateTotals(invoice.lines);
+  assert(totals.lineNet === 200, 'mixed VAT line net should sum line amounts');
+  assert(totals.tax === 26, `mixed VAT tax should be 26.00, got ${totals.tax}`);
+  assert(totals.payable === 226, `mixed VAT payable should be 226.00, got ${totals.payable}`);
+  assert(totals.taxGroups.length === 2, 'mixed VAT should create two tax groups');
+
+  const artifact = app.generateInvoice(invoice, 'xrechnung-ubl');
+  assert((artifact.content.match(/<cac:TaxSubtotal>/g) || []).length === 2, 'UBL should emit one TaxSubtotal per VAT group');
+  assert(artifact.content.includes('<cbc:TaxAmount currencyID="EUR">26.00</cbc:TaxAmount>'), 'UBL total tax should be 26.00');
+  assert(artifact.content.includes('<cbc:TaxableAmount currencyID="EUR">100.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">7.00</cbc:TaxAmount><cac:TaxCategory><cbc:ID>AA</cbc:ID><cbc:Percent>7.00</cbc:Percent>'), 'UBL missing 7% tax subtotal');
+  assert(artifact.content.includes('<cbc:TaxableAmount currencyID="EUR">100.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">19.00</cbc:TaxAmount><cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>19.00</cbc:Percent>'), 'UBL missing 19% tax subtotal');
+});
+
+test('preflight blocks adjustments that would create negative mixed-VAT tax groups', () => {
+  const invoice = sampleInvoice({
+    allowance: { amount: '50.00', reasonCode: '95' },
+    lines: [
+      { description: 'Ermäßigte Leistung', quantity: '1', unitCode: 'C62', netPrice: '10.00', taxCategory: 'AA', taxPercent: '7' },
+      { description: 'Regelleistung', quantity: '1', unitCode: 'C62', netPrice: '100.00', taxCategory: 'S', taxPercent: '19' },
+    ],
+  });
+  const result = app.convertForAgent(invoice, 'xrechnung-ubl');
+  assert(result.ok === false, 'allowance must not generate a negative VAT subtotal');
+  assert(result.errors.some((error) => /negative Steuergruppe|Steuerkategorie-Zuordnung/i.test(error)), 'negative tax-group error should be explicit');
 });
 
 test('local document intake parses csv txt and xml snippets without network', () => {
