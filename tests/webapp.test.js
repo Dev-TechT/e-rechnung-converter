@@ -120,6 +120,17 @@ test('all browser formats are implemented and selectable', () => {
   }
 });
 
+test('page declares an inline favicon so Chromium does not request root favicon.ico', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
+  assert(head, 'missing document head');
+  const faviconLink = head[1].match(/<link\b(?=[^>]*\brel=["'][^"']*\bicon\b[^"']*["'])(?=[^>]*\bhref=["']([^"']+)["'])[^>]*>/i);
+  assert(faviconLink, 'missing explicit favicon link in head');
+  const href = faviconLink[1];
+  assert(href === 'data:,' || href.startsWith('data:image/'), 'favicon should be an inline data URI to avoid any HTTP favicon request');
+  assert(!/^\/?favicon\.ico(?:[?#]|$)/i.test(href), 'favicon must not rely on /favicon.ico');
+});
+
 test('product copy does not describe the app as a demo or fake legal certainty', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'pages.yml'), 'utf8');
