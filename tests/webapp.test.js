@@ -1280,10 +1280,19 @@ test('agent API returns structured errors instead of converting invalid invoices
 });
 
 test('responsive type scale keeps hero and privacy copy compact', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'styles.css'), 'utf8');
   assert(css.includes('h1 { font-size: clamp(2.15rem, 4.8vw, 4.9rem)'), 'h1 type scale should be reduced');
   assert(css.includes('.lead { max-width: 680px; font-size: 1.03rem'), 'lead copy should be smaller/narrower');
   assert(css.includes('.privacy-card h2 { font-size: clamp(1.45rem, 2.4vw, 2.35rem)'), 'privacy h2 should be toned down');
+  assert(css.includes('@media (max-width: 720px)'), 'mobile breakpoint should exist');
+  assert(css.includes('.topbar { align-items: stretch;'), 'mobile topbar should allow full-width compact nav');
+  assert(css.includes('.navlinks { justify-content: flex-start;'), 'mobile nav should stop isolating the last item on its own right-aligned row');
+  assert(css.includes('.navlinks a { flex: 1 1 calc(50% - 8px); text-align: center;'), 'mobile nav should form balanced two-column rows instead of orphaning Kontakt');
+  assert(css.includes('h1 { font-size: clamp(1.85rem, 9vw, 2.75rem); line-height: 1.02; overflow-wrap: normal; word-break: keep-all; hyphens: manual; }'), 'mobile h1 should avoid awkward anywhere splitting of E-Rechnungsformate');
+  assert(html.includes('E‑Rechnungsformate'), 'headline should use a nonbreaking hyphen in E-Rechnungsformate');
+  assert(!html.includes('E-Rechnungsformate umwandeln'), 'headline should not use a line-breakable hyphen before Rechnungsformate');
+  assert(css.includes('.actions .button { flex: 1 1 150px; }'), 'mobile action buttons should keep usable balanced widths');
 });
 
 test('required star is inserted inside inline label text before the input', () => {

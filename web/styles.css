@@ -125,8 +125,13 @@ footer { color: var(--muted); padding: 34px 0 54px; }
 
 @media (max-width: 720px) {
   .hero, main, footer { width: min(100% - 24px, 1240px); }
-  .topbar { align-items: flex-start; flex-direction: column; padding-bottom: 30px; }
+  .topbar { align-items: stretch; flex-direction: column; gap: 14px; padding-bottom: 26px; }
+  .navlinks { justify-content: flex-start; gap: 8px; }
+  .navlinks a { flex: 1 1 calc(50% - 8px); text-align: center; padding: 8px 10px; background: rgba(255,255,255,.5); }
   .two, .three, .four, .field-priority-legend { grid-template-columns: 1fr; }
   .intake-card, .form-card, .card, .hero-panel { padding: 18px; border-radius: 22px; }
-  h1 { font-size: clamp(2rem, 11vw, 3.55rem); }
+  h1 { font-size: clamp(1.85rem, 9vw, 2.75rem); line-height: 1.02; overflow-wrap: normal; word-break: keep-all; hyphens: manual; }
+  .lead { font-size: .98rem; line-height: 1.48; }
+  .actions { gap: 10px; }
+  .actions .button { flex: 1 1 150px; }
 }
